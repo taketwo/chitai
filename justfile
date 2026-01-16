@@ -8,6 +8,7 @@ check: check-format check-lint check-type
 # Verify code formatting
 check-format:
     uv run ruff format --check .
+    npx prettier --check web/
 
 # Run linting checks
 check-lint:
@@ -23,6 +24,7 @@ fix: fix-format fix-lint
 # Auto-format code
 fix-format:
     uv run ruff format .
+    npx prettier --write web/
 
 # Auto-fix linting issues
 fix-lint:

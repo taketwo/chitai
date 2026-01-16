@@ -1,5 +1,7 @@
 """Application settings loaded from environment variables."""
 
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
 
 
@@ -11,11 +13,22 @@ class Settings(BaseSettings):
     """
 
     reload: bool = False
+    cert_dir: str = "/app/data/certs"
 
     class Config:
         """Pydantic configuration."""
 
         env_prefix = "CHITAI_"
+
+    @property
+    def ssl_certfile(self) -> str:
+        """Path to SSL certificate file."""
+        return str(Path(self.cert_dir) / "cert.pem")
+
+    @property
+    def ssl_keyfile(self) -> str:
+        """Path to SSL private key file."""
+        return str(Path(self.cert_dir) / "key.pem")
 
 
 settings = Settings()

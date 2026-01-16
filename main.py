@@ -12,6 +12,8 @@ def main() -> None:
         host="0.0.0.0",  # noqa: S104
         port=8000,
         reload=settings.reload,
+        ssl_certfile=settings.ssl_certfile,
+        ssl_keyfile=settings.ssl_keyfile,
     )
 
 

@@ -8,4 +8,4 @@ RUN uv sync --frozen --no-dev
 
 EXPOSE 8000
 
-CMD ["uv", "run", "main.py"]
+ENTRYPOINT ["/app/docker/entrypoint.sh"]

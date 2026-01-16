@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     reload: bool = False
 
     class Config:
+        """Pydantic configuration."""
+
         env_prefix = "CHITAI_"
 
 

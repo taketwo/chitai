@@ -1,6 +1,7 @@
 """FastAPI application with WebSocket endpoint."""
 
 import logging
+
 from fastapi import FastAPI, WebSocket
 from fastapi.staticfiles import StaticFiles
 
@@ -27,7 +28,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     try:
         while True:
             data = await websocket.receive_json()
-            logger.info(f"Received: {data}")
+            logger.info("Received: %s", data)
             await websocket.send_json({"echo": data})
-    except Exception as e:
-        logger.info(f"WebSocket disconnected: {e}")
+    except (RuntimeError, ValueError) as e:
+        logger.info("WebSocket disconnected: %s", e)

@@ -2,39 +2,59 @@
 
 Reading practice tool
 
-## Quick start
+## Deployment
 
-### Development
+### Requirements
+
+- Docker with compose plugin
+- Git
+
+#### Installing requirements on Ubuntu 24.04
 
 ```bash
-# Start dev environment with Docker (hot-reload enabled)
-just docker-up
+# Install Docker
+sudo apt install -y docker.io docker-compose-v2
+# Enable Docker to start on boot
+sudo systemctl enable docker
+sudo systemctl start docker
+# Add your user to docker group (to run without sudo)
+sudo usermod -aG docker $USER
 ```
 
-Access the interfaces:
-- Controller: http://localhost:8000/web/controller/
-- Display: http://localhost:8000/web/display/
-- Admin: http://localhost:8000/web/admin/
+### First-time setup
 
-### Production deployment
+Clone and start the application:
 
-1. **First-time setup on server:**
-   ```bash
-   git clone https://github.com/taketwo/chitai.git
-   cd chitai
-   docker compose -f docker/compose.yaml --profile prod up -d
-   ```
+```bash
+git clone https://github.com/taketwo/chitai.git
+cd chitai
+docker compose -f docker/compose.yaml --profile prod up -d
+```
 
-2. **Updates:**
-   - Push to `main` branch triggers CI
-   - On successful tests, Docker image is pushed to GitHub Container Registry
-   - On server, pull and restart:
-   ```bash
-   docker compose -f docker/compose.yaml --profile prod pull
-   docker compose -f docker/compose.yaml --profile prod up -d
-   ```
+This will:
+- Pull the latest image from GitHub Container Registry
+- Start the application on port 8000
+- Start Watchtower to monitor for updates
+- Configure automatic restart on server reboot
 
-The application will automatically restart on server reboot.
+### Automatic updates
+
+The deployment automatically stays up-to-date:
+- Push to `main` branch triggers CI
+- On successful tests, new Docker image is pushed to GitHub Container Registry
+- Watchtower checks for updates every 5 minutes
+- When a new image is found, Watchtower automatically pulls and restarts the application
+
+### Stopping deployment
+
+To stop and remove the application:
+
+```bash
+cd chitai
+docker compose -f docker/compose.yaml --profile prod down
+```
+
+This stops all containers and prevents them from restarting on reboot.
 
 ## Development
 
@@ -43,7 +63,7 @@ The application will automatically restart on server reboot.
 - Python 3.14+
 - uv
 - just
-- Docker
+- Docker with compose plugin
 
 ### Setup
 

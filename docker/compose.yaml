@@ -1,0 +1,27 @@
+services:
+  chitai:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../data:/app/data
+    profiles:
+      - prod
+
+  chitai-dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../data:/app/data
+      - ..:/app
+    environment:
+      - UV_LINK_MODE=copy
+      - UV_PROJECT_ENVIRONMENT=/opt/venv
+      - CHITAI_RELOAD=true
+    profiles:
+      - dev

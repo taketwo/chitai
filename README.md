@@ -7,12 +7,8 @@ Reading practice tool
 ### Development
 
 ```bash
-# Run with Docker (dev profile with hot-reload)
-cd docker
-docker compose --profile dev up --build
-
-# Or run locally
-uv run main.py
+# Start dev environment with Docker (hot-reload enabled)
+just docker-up
 ```
 
 Access the interfaces:
@@ -23,8 +19,8 @@ Access the interfaces:
 ### Production
 
 ```bash
-cd docker
-docker compose --profile prod up --build -d
+docker build -f docker/Dockerfile -t chitai:latest .
+docker compose -f docker/compose.yaml --profile prod up -d
 ```
 
 ## Development
@@ -33,7 +29,8 @@ docker compose --profile prod up --build -d
 
 - Python 3.14+
 - uv
-- Docker (optional)
+- just
+- Docker
 
 ### Setup
 
@@ -41,12 +38,21 @@ docker compose --profile prod up --build -d
 # Install dependencies
 uv sync
 
-# Run linter
-uv run ruff check
+# Run all checks (format, lint, type)
+just check
 
-# Run type checker
-uv run ty
+# Run tests with coverage
+just test
 
-# Run tests
-uv run pytest
+# Auto-fix formatting and linting issues
+just fix
+
+# Build Docker image
+just docker-build
+
+# Start dev environment
+just docker-up
+
+# View all available commands
+just --list
 ```

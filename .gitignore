@@ -1,4 +1,16 @@
 .venv/
+__pycache__/
+*.py[cod]
+*$py.class
 
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Linting
+.ruff_cache/
+
+# Data
 data/*
 !data/.gitkeep

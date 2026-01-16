@@ -2,7 +2,7 @@
 
 Reading practice tool
 
-## Quick Start
+## Quick start
 
 ### Development
 
@@ -16,12 +16,25 @@ Access the interfaces:
 - Display: http://localhost:8000/web/display/
 - Admin: http://localhost:8000/web/admin/
 
-### Production
+### Production deployment
 
-```bash
-docker build -f docker/Dockerfile -t chitai:latest .
-docker compose -f docker/compose.yaml --profile prod up -d
-```
+1. **First-time setup on server:**
+   ```bash
+   git clone https://github.com/taketwo/chitai.git
+   cd chitai
+   docker compose -f docker/compose.yaml --profile prod up -d
+   ```
+
+2. **Updates:**
+   - Push to `main` branch triggers CI
+   - On successful tests, Docker image is pushed to GitHub Container Registry
+   - On server, pull and restart:
+   ```bash
+   docker compose -f docker/compose.yaml --profile prod pull
+   docker compose -f docker/compose.yaml --profile prod up -d
+   ```
+
+The application will automatically restart on server reboot.
 
 ## Development
 

@@ -1,8 +1,8 @@
 services:
   chitai:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
+    image: ghcr.io/taketwo/chitai:latest
+    pull_policy: always
+    restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:

@@ -5,12 +5,14 @@ import logging
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
-from chitai.server.session import session
+from chitai.server.session import SessionState
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Chitai")
+
+app.state.session = SessionState()
 
 app.mount("/web", StaticFiles(directory="web", html=True), name="web")
 
@@ -37,6 +39,7 @@ async def websocket_endpoint(
 
     """
     await websocket.accept()
+    session = websocket.app.state.session
 
     if role == "controller":
         await session.add_controller(websocket)
@@ -53,7 +56,7 @@ async def websocket_endpoint(
             logger.info("Received from %s: %s", role, data)
 
             if role == "controller":
-                await _handle_controller_message(data)
+                await _handle_controller_message(websocket, data)
 
     except WebSocketDisconnect:
         logger.info("%s disconnected", role.capitalize())
@@ -63,15 +66,18 @@ async def websocket_endpoint(
         session.remove_client(websocket)
 
 
-async def _handle_controller_message(data: dict) -> None:
+async def _handle_controller_message(websocket: WebSocket, data: dict) -> None:
     """Handle messages from controller clients.
 
     Parameters
     ----------
+    websocket : WebSocket
+        The controller's WebSocket connection
     data : dict
         The message data
 
     """
+    session = websocket.app.state.session
     message_type = data.get("type")
 
     if message_type == "add_item":

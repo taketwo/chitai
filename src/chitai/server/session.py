@@ -113,6 +113,8 @@ class SessionState:
         except RuntimeError as e:
             logger.warning("Failed to send state: %s", e)
 
-
-# Global session instance (single session for now)
-session = SessionState()
+    def reset(self) -> None:
+        """Reset session state."""
+        self.current_text = None
+        self.controllers.clear()
+        self.displays.clear()

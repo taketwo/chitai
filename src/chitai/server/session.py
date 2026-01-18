@@ -45,6 +45,9 @@ class SessionState:
         logger.info(
             "Controller connected. Total controllers: %d", len(self.controllers)
         )
+        # Send current state to newly connected controller
+        if self.words:
+            await self._send_state(websocket)
 
     async def add_display(self, websocket: WebSocket) -> None:
         """Add a display client to the session.
@@ -121,17 +124,19 @@ class SessionState:
             logger.debug("Word index unchanged: already at boundary")
 
     async def _broadcast_state(self) -> None:
-        """Broadcast current state to all connected displays."""
+        """Broadcast current state to all connected clients."""
         for display in self.displays:
             await self._send_state(display)
+        for controller in self.controllers:
+            await self._send_state(controller)
 
     async def _send_state(self, websocket: WebSocket) -> None:
-        """Send current state to a specific display.
+        """Send current state to a specific client.
 
         Parameters
         ----------
         websocket : WebSocket
-            The display's WebSocket connection
+            The client's WebSocket connection
 
         """
         message: dict[str, Any] = {

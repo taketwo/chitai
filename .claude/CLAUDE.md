@@ -33,7 +33,7 @@ Scopes are optional but recommended. Use these scopes:
 **Core Application Layers:**
 - `server` - FastAPI app, WebSocket handling, routing
 - `db` - SQLAlchemy models, migrations, database operations
-- `syllables` - Syllabification logic, language adapters
+- `language` - Text processing, syllabification, language adapters
 - `illustrations` - Image search, storage handling
 - `settings` - Configuration management
 
@@ -58,7 +58,7 @@ Scopes are optional but recommended. Use these scopes:
 
 ### Usage Examples
 ```
-feat(syllables): add rusyll integration for Russian
+feat(language): add rusyll integration for Russian
 feat(server): implement session state management
 feat(ui): add word advance button to controller
 fix(ui): resolve tablet layout on iPad
@@ -80,6 +80,22 @@ chore: add justfile recipe for database migrations
 ### Adding Dependencies
 
 Use `uv add <package>` for runtime dependencies, `uv add --dev <package>` for dev dependencies.
+
+## Code Quality & Linting
+
+### Ruff Configuration
+
+This project uses Ruff with **ALL diagnostics enabled** (with a few exceptions defined in `pyproject.toml`).
+
+Handling Ruff diagnostics:
+1. **Try to fix diagnostics first** - most diagnostics point to real issues or better patterns
+2. **Don't go crazy** - if a diagnostic seems unreasonable for this project, consider ignoring it
+3. **Ignore hierarchy** (in order of preference):
+   - Line-level ignore: `# noqa: <code>` for one-off cases
+   - File-level ignore: `# ruff: noqa: <code>` at top of file for single files
+   - Pattern-based ignore: Add to `lint.per-file-ignores` in `pyproject.toml` for file patterns (e.g., `tests/**/*.py`)
+   - Project-level ignore: Add to `lint.ignore` in `pyproject.toml`
+4. **Project-level ignores require permission** - NEVER add a new rule to `lint.ignore` in `pyproject.toml` without EXPLICIT permission from the user
 
 ## Development Workflow
 

@@ -40,7 +40,7 @@ async def test_display_connection():
 
 @pytest.mark.asyncio
 async def test_websocket_controller_sets_state():
-    """Test that controller can set text state."""
+    """Test that controller can set text state and receives state broadcast."""
     async with (
         ASGIWebSocketTransport(app=app) as transport,
         AsyncClient(transport=transport, base_url="http://test") as client,
@@ -52,6 +52,10 @@ async def test_websocket_controller_sets_state():
                 "payload": {"text": "молоко хлеб"},
             }
         )
+        # Controller now receives state broadcasts
+        data = await ws.receive_json()
+        assert data["type"] == "state"
+        assert data["payload"]["words"] == ["молоко", "хлеб"]
 
     assert app.state.session.words == ["молоко", "хлеб"]
     assert app.state.session.current_word_index == 0

@@ -17,9 +17,9 @@ ws.onmessage = (event) => {
   console.log("Received:", data);
 
   if (data.type === "state") {
-    const { words, current_word_index } = data.payload;
+    const { words, syllables, current_word_index } = data.payload;
     if (words && words.length > 0) {
-      renderWords(words, current_word_index);
+      renderWords(words, syllables, current_word_index);
     } else {
       textDisplay.innerHTML =
         '<span class="placeholder">Waiting for text...</span>';
@@ -27,8 +27,9 @@ ws.onmessage = (event) => {
   }
 };
 
-function renderWords(words, currentIndex) {
+function renderWords(words, syllables, currentIndex) {
   // Settings (hardcoded for now)
+  const showSyllables = true;
   const dimReadWords = true;
   const dimFutureWords = false;
 
@@ -37,7 +38,25 @@ function renderWords(words, currentIndex) {
   words.forEach((word, index) => {
     const wordEl = document.createElement("div");
     wordEl.className = "word";
-    wordEl.textContent = word;
+
+    // Render word with or without syllables
+    if (showSyllables) {
+      const wordSyllables = syllables[index] || [word];
+      wordSyllables.forEach((syllable, sylIndex) => {
+        const syllableSpan = document.createElement("span");
+        syllableSpan.textContent = syllable;
+        syllableSpan.className = "syllable";
+
+        // Add separator class for all but the last syllable
+        if (sylIndex < wordSyllables.length - 1) {
+          syllableSpan.classList.add("syllable-with-separator");
+        }
+
+        wordEl.appendChild(syllableSpan);
+      });
+    } else {
+      wordEl.textContent = word;
+    }
 
     if (index < currentIndex) {
       wordEl.classList.add("read");

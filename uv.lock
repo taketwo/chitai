@@ -48,6 +48,7 @@ source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "pydantic-settings" },
+    { name = "rusyll" },
     { name = "uvicorn" },
     { name = "websockets" },
 ]
@@ -67,6 +68,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.128.0" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
+    { name = "rusyll", specifier = ">=0.1.1" },
     { name = "uvicorn", specifier = ">=0.40.0" },
     { name = "websockets", specifier = ">=16.0" },
 ]
@@ -393,6 +395,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/6a/c5/abd840d4132fd51a12f594934af5eba1d5d27298a6f5b5d6c3be45301caf/ruff-0.14.13-py3-none-win32.whl", hash = "sha256:ef720f529aec113968b45dfdb838ac8934e519711da53a0456038a0efecbd680", size = 12919024, upload-time = "2026-01-15T20:14:43.647Z" },
     { url = "https://files.pythonhosted.org/packages/c2/55/6384b0b8ce731b6e2ade2b5449bf07c0e4c31e8a2e68ea65b3bafadcecc5/ruff-0.14.13-py3-none-win_amd64.whl", hash = "sha256:6070bd026e409734b9257e03e3ef18c6e1a216f0435c6751d7a8ec69cb59abef", size = 14097887, upload-time = "2026-01-15T20:15:01.48Z" },
     { url = "https://files.pythonhosted.org/packages/4d/e1/7348090988095e4e39560cfc2f7555b1b2a7357deba19167b600fdf5215d/ruff-0.14.13-py3-none-win_arm64.whl", hash = "sha256:7ab819e14f1ad9fe39f246cfcc435880ef7a9390d81a2b6ac7e01039083dd247", size = 13080224, upload-time = "2026-01-15T20:14:45.853Z" },
+]
+
+[[package]]
+name = "rusyll"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/53/8b/82d9fbfa3a2bf6e864c0c8dfb80e4cc51a5d70c5500cdd559bc3ed56347c/rusyll-0.1.1.tar.gz", hash = "sha256:c11e7ee8cb6f5f14adba19869e007ec7a2e1c49835059ca286b40752b7f7bc6e", size = 4033, upload-time = "2020-07-22T15:28:59.958Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7a/b6/e614c16bc90ec2d2f7efc40923d17446e095318b5e55ac29bb798e3a7af4/rusyll-0.1.1-py3-none-any.whl", hash = "sha256:c3d1490aaa00f8f3a0315721565c3a358f397b7ef28e439d9ffa78c26070a4fa", size = 5246, upload-time = "2020-07-22T15:28:58.901Z" },
 ]
 
 [[package]]

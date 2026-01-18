@@ -42,13 +42,9 @@ test-unit:
 test-integration:
     uv run pytest tests/integration/
 
-# Build Docker image
-docker-build:
-    docker build -f docker/Dockerfile -t chitai:latest .
-
-# Start dev environment
+# Start dev environment (builds image if needed)
 docker-up:
-    docker compose -f docker/compose.yaml --profile dev up -d
+    docker compose -f docker/compose.yaml --profile dev up -d --build
 
 # Stop containers
 docker-down:
@@ -58,5 +54,6 @@ docker-down:
 docker-logs:
     docker compose -f docker/compose.yaml logs -f
 
-# Restart dev environment
-docker-restart: docker-down docker-up
+# Rebuild and restart dev environment
+docker-restart:
+    docker compose -f docker/compose.yaml --profile dev up -d --build --force-recreate

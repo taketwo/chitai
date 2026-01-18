@@ -36,5 +36,3 @@ jobs:
       - name: Run tests
         run: just test
 
-      - name: Build Docker image
-        run: just docker-build

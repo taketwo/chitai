@@ -4,6 +4,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from chitai.language import sanitize, syllabify, tokenize
+
 if TYPE_CHECKING:
     from fastapi import WebSocket
 
@@ -84,7 +86,7 @@ class SessionState:
     async def set_text(self, text: str) -> None:
         """Set the current text and broadcast to all displays.
 
-        Splits text into words and resets the word index to 0.
+        Sanitizes and tokenizes text into words, resets the word index to 0.
 
         Parameters
         ----------
@@ -92,7 +94,7 @@ class SessionState:
             The text to display
 
         """
-        self.words = text.split()
+        self.words = tokenize(sanitize(text))
         self.current_word_index = 0
         logger.info("Text updated: %d words", len(self.words))
         await self._broadcast_state()
@@ -143,6 +145,7 @@ class SessionState:
             "type": "state",
             "payload": {
                 "words": self.words,
+                "syllables": [syllabify(word) for word in self.words],
                 "current_word_index": self.current_word_index,
             },
         }

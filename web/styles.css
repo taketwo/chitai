@@ -199,6 +199,15 @@ body.display {
   opacity: 0.5;
 }
 
+.display .syllable-with-separator::after {
+  content: "\00B7";
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 0;
+  font-size: 0.55em;
+  margin: 0 0.15em;
+}
+
 .display .placeholder {
   color: #999;
   font-size: 24px;

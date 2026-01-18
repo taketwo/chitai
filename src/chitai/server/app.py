@@ -86,5 +86,8 @@ async def _handle_controller_message(websocket: WebSocket, data: dict) -> None:
             await session.set_text(text)
         else:
             logger.warning("add_item message missing text")
+    elif message_type == "advance_word":
+        delta = data.get("payload", {}).get("delta", 1)
+        await session.advance_word(delta)
     else:
         logger.warning("Unknown message type: %s", message_type)

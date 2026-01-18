@@ -34,9 +34,10 @@ lint.ignore = [
 ]
 lint.pydocstyle.convention = "numpy"
 lint.per-file-ignores."tests/**/*.py" = [
-  "S101", # Allow assert in tests
-  "ANN",  # Don't require type annotations in tests
-  "D",    # Don't require docstrings in tests
+  "S101",    # Allow assert in tests
+  "ANN",     # Don't require type annotations in tests
+  "D",       # Don't require docstrings in tests
+  "PLR2004", # Allow magic values in tests
 ]
 lint.per-file-ignores."docker/**/*.py" = [
   "INP001", # Docker scripts are not part of a package

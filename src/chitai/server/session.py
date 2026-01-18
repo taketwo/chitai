@@ -16,8 +16,10 @@ class SessionState:
 
     Attributes
     ----------
-    current_text : str | None
-        The text currently being displayed
+    words : list[str]
+        Words from the current text being displayed
+    current_word_index : int
+        Index of the currently highlighted word (0-based)
     controllers : set[WebSocket]
         Connected controller clients (phones)
     displays : set[WebSocket]
@@ -25,7 +27,8 @@ class SessionState:
 
     """
 
-    current_text: str | None = None
+    words: list[str] = field(default_factory=list)
+    current_word_index: int = 0
     controllers: set[WebSocket] = field(default_factory=set)
     displays: set[WebSocket] = field(default_factory=set)
 
@@ -55,7 +58,7 @@ class SessionState:
         self.displays.add(websocket)
         logger.info("Display connected. Total displays: %d", len(self.displays))
         # Send current state to newly connected display
-        if self.current_text is not None:
+        if self.words:
             await self._send_state(websocket)
 
     def remove_client(self, websocket: WebSocket) -> None:
@@ -78,15 +81,44 @@ class SessionState:
     async def set_text(self, text: str) -> None:
         """Set the current text and broadcast to all displays.
 
+        Splits text into words and resets the word index to 0.
+
         Parameters
         ----------
         text : str
             The text to display
 
         """
-        self.current_text = text
-        logger.info("Text updated: %s", text[:50])
+        self.words = text.split()
+        self.current_word_index = 0
+        logger.info("Text updated: %d words", len(self.words))
         await self._broadcast_state()
+
+    async def advance_word(self, delta: int = 1) -> None:
+        """Move to a different word by a given offset (with clamping).
+
+        Parameters
+        ----------
+        delta : int
+            Number of words to advance (positive) or go back (negative)
+
+        """
+        if not self.words:
+            logger.warning("Cannot advance word: no text set")
+            return
+
+        if delta == 0:
+            logger.debug("Delta is 0: no change to word index")
+            return
+
+        new_index = max(0, min(self.current_word_index + delta, len(self.words) - 1))
+
+        if new_index != self.current_word_index:
+            self.current_word_index = new_index
+            logger.info("Word index: %d/%d", new_index + 1, len(self.words))
+            await self._broadcast_state()
+        else:
+            logger.debug("Word index unchanged: already at boundary")
 
     async def _broadcast_state(self) -> None:
         """Broadcast current state to all connected displays."""
@@ -105,7 +137,8 @@ class SessionState:
         message: dict[str, Any] = {
             "type": "state",
             "payload": {
-                "current_text": self.current_text,
+                "words": self.words,
+                "current_word_index": self.current_word_index,
             },
         }
         try:
@@ -115,6 +148,7 @@ class SessionState:
 
     def reset(self) -> None:
         """Reset session state."""
-        self.current_text = None
+        self.words.clear()
+        self.current_word_index = 0
         self.controllers.clear()
         self.displays.clear()

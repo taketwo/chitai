@@ -49,17 +49,18 @@ async def test_websocket_controller_sets_state():
         await ws.send_json(
             {
                 "type": "add_item",
-                "payload": {"text": "молоко"},
+                "payload": {"text": "молоко хлеб"},
             }
         )
 
-    assert app.state.session.current_text == "молоко"
+    assert app.state.session.words == ["молоко", "хлеб"]
+    assert app.state.session.current_word_index == 0
 
 
 @pytest.mark.asyncio
 async def test_websocket_display_receives_state():
     """Test that display receives current state on connect."""
-    app.state.session.current_text = "черепаха"
+    await app.state.session.set_text("черепаха молоко")
 
     async with (
         ASGIWebSocketTransport(app=app) as transport,
@@ -68,7 +69,8 @@ async def test_websocket_display_receives_state():
     ):
         data = await ws.receive_json()
         assert data["type"] == "state"
-        assert data["payload"]["current_text"] == "черепаха"
+        assert data["payload"]["words"] == ["черепаха", "молоко"]
+        assert data["payload"]["current_word_index"] == 0
 
 
 @pytest.mark.asyncio
@@ -83,10 +85,62 @@ async def test_websocket_controller_to_display_flow():
         await controller_ws.send_json(
             {
                 "type": "add_item",
-                "payload": {"text": "привет"},
+                "payload": {"text": "привет мир"},
             }
         )
 
         data = await display_ws.receive_json()
         assert data["type"] == "state"
-        assert data["payload"]["current_text"] == "привет"
+        assert data["payload"]["words"] == ["привет", "мир"]
+        assert data["payload"]["current_word_index"] == 0
+
+
+@pytest.mark.asyncio
+async def test_websocket_advance_word_forward():
+    """Test advancing to next word broadcasts state."""
+    async with (
+        ASGIWebSocketTransport(app=app) as transport,
+        AsyncClient(transport=transport, base_url="http://test") as client,
+        aconnect_ws("http://test/ws?role=display", client) as display_ws,
+        aconnect_ws("http://test/ws?role=controller", client) as controller_ws,
+    ):
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "один два три"}}
+        )
+        await display_ws.receive_json()  # Initial state
+
+        await controller_ws.send_json({"type": "advance_word", "payload": {"delta": 1}})
+
+        data = await display_ws.receive_json()
+        assert data["type"] == "state"
+        assert data["payload"]["current_word_index"] == 1
+
+
+@pytest.mark.asyncio
+async def test_websocket_advance_word_backward():
+    """Test going back to previous word broadcasts state."""
+    async with (
+        ASGIWebSocketTransport(app=app) as transport,
+        AsyncClient(transport=transport, base_url="http://test") as client,
+        aconnect_ws("http://test/ws?role=display", client) as display_ws,
+        aconnect_ws("http://test/ws?role=controller", client) as controller_ws,
+    ):
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "один два три"}}
+        )
+        await display_ws.receive_json()  # Initial state
+
+        # Advance twice
+        await controller_ws.send_json({"type": "advance_word", "payload": {"delta": 1}})
+        await display_ws.receive_json()
+        await controller_ws.send_json({"type": "advance_word", "payload": {"delta": 1}})
+        await display_ws.receive_json()
+
+        # Go back once
+        await controller_ws.send_json(
+            {"type": "advance_word", "payload": {"delta": -1}}
+        )
+
+        data = await display_ws.receive_json()
+        assert data["type"] == "state"
+        assert data["payload"]["current_word_index"] == 1

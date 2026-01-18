@@ -14,9 +14,13 @@
   </head>
   <body class="controller">
     <div class="container">
-      <h1>Controller</h1>
-
       <div id="status" class="status disconnected">Disconnected</div>
+
+      <div class="controls" style="display: none">
+        <button id="backBtn" class="back-btn" disabled>←</button>
+        <div id="currentWord" class="current-word">—</div>
+        <button id="advanceBtn" class="advance-btn" disabled>→</button>
+      </div>
 
       <div class="input-group">
         <textarea id="textInput" placeholder="Enter text..."></textarea>

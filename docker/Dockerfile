@@ -8,4 +8,7 @@ RUN uv sync --frozen --no-dev
 
 EXPOSE 8000
 
+HEALTHCHECK --start-period=10s --interval=1m --timeout=3s \
+  CMD uv run /app/docker/healthcheck.py
+
 ENTRYPOINT ["/app/docker/entrypoint.sh"]

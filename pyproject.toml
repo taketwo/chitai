@@ -38,6 +38,9 @@ lint.per-file-ignores."tests/**/*.py" = [
   "ANN",  # Don't require type annotations in tests
   "D",    # Don't require docstrings in tests
 ]
+lint.per-file-ignores."docker/**/*.py" = [
+  "INP001", # Docker scripts are not part of a package
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

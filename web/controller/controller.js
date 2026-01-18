@@ -36,6 +36,38 @@ ws.onmessage = (event) => {
 
 function updateCurrentWord(word) {
   currentWordEl.textContent = word;
+
+  // Reset to default font size
+  const defaultFontSize = 32;
+  currentWordEl.style.fontSize = `${defaultFontSize}px`;
+
+  // Need a slight delay for browser to reflow
+  requestAnimationFrame(() => {
+    const containerWidth = currentWordEl.offsetWidth;
+    let textWidth = currentWordEl.scrollWidth;
+
+    if (textWidth > containerWidth) {
+      let fontSize = defaultFontSize;
+      let attempts = 0;
+      const maxAttempts = 3;
+
+      while (
+        textWidth > containerWidth &&
+        attempts < maxAttempts &&
+        fontSize > 12
+      ) {
+        // Calculate new font size based on current measurements
+        const scaleFactor = containerWidth / textWidth;
+        fontSize = Math.floor(fontSize * scaleFactor * 0.95); // 95% of calculated to be safe
+        fontSize = Math.max(fontSize, 12); // Min 12px
+
+        // Apply and re-measure
+        currentWordEl.style.fontSize = `${fontSize}px`;
+        textWidth = currentWordEl.scrollWidth;
+        attempts++;
+      }
+    }
+  });
 }
 
 ws.onclose = () => {

@@ -61,8 +61,8 @@ This stops all containers and prevents them from restarting on reboot.
 ### Requirements
 
 - Python 3.14+
-- uv
-- just
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
+- [just](https://github.com/casey/just) (command runner)
 - Docker with compose plugin
 
 ### Setup
@@ -79,13 +79,35 @@ just test
 
 # Auto-fix formatting and linting issues
 just fix
+```
 
-# Build Docker image
-just docker-build
+### Docker development workflow
 
-# Start dev environment
+The dev environment uses Docker Compose with hot-reload enabled:
+
+```bash
+# Start dev environment (builds image if needed)
 just docker-up
 
-# View all available commands
-just --list
+# View logs
+just docker-logs
+
+# Stop containers
+just docker-down
+
+# Rebuild and restart (needed after dependency or Docker config changes)
+just docker-restart
 ```
+
+The dev container:
+- Mounts your local codebase at `/app` for live editing
+- Runs with `CHITAI_RELOAD=true` for automatic code reloading
+- Exposes the app on `http://localhost:8000`
+
+**When to rebuild:**
+- Dependency changes (`pyproject.toml`, `uv.lock`)
+- Dockerfile or docker-compose changes
+
+**No rebuild needed:**
+- Python code changes (auto-reloaded)
+- Static file changes (served from mounted volume)

@@ -102,6 +102,53 @@ body.controller {
   margin-top: 12px;
 }
 
+.controller .controls {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.controller .controls .back-btn,
+.controller .controls .advance-btn {
+  width: 60px;
+  min-width: 60px;
+  padding: 16px;
+  font-size: 24px;
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+.controller .controls .back-btn {
+  background: #e0e0e0;
+  color: #666;
+}
+
+.controller .controls .back-btn:hover:not(:disabled) {
+  background: #d0d0d0;
+}
+
+.controller .controls .back-btn:active:not(:disabled) {
+  background: #c0c0c0;
+}
+
+.controller .controls .current-word {
+  flex: 1;
+  text-align: center;
+  font-size: 32px;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 /* Display styles */
 body.display {
   background: white;
@@ -129,11 +176,27 @@ body.display {
   font-size: 48px;
   line-height: 1.5;
   color: #333;
-  word-wrap: break-word;
   min-height: 200px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+}
+
+.display .word {
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.display .word.current {
+  background: #ffd700;
+  font-weight: 600;
+}
+
+.display .word.dimmed {
+  opacity: 0.5;
 }
 
 .display .placeholder {

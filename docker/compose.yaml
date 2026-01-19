@@ -10,8 +10,6 @@ services:
       - "8000:8000"
     volumes:
       - ../data:/app/data
-    environment:
-      - CHITAI_CERT_DIR=/app/data/certs
     profiles:
       - prod
 
@@ -28,7 +26,6 @@ services:
       - UV_LINK_MODE=copy
       - UV_PROJECT_ENVIRONMENT=/opt/venv
       - CHITAI_RELOAD=true
-      - CHITAI_CERT_DIR=/app/data/certs
     profiles:
       - dev
 

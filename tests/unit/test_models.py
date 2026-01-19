@@ -32,6 +32,7 @@ def session() -> Generator[Session]:
     session = session_factory()
     yield session
     session.close()
+    engine.dispose()
 
 
 def test_item_creation(session: Session) -> None:

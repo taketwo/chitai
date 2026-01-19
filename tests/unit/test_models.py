@@ -73,6 +73,7 @@ def test_session_end(session: Session) -> None:
     session.commit()
 
     retrieved = session.query(DBSession).first()
+    assert retrieved is not None
     assert retrieved.ended_at is not None
     assert retrieved.ended_at > retrieved.started_at
 
@@ -117,6 +118,7 @@ def test_session_item_relationships(session: Session) -> None:
 
     # Test relationships
     retrieved_session_item = session.query(SessionItem).first()
+    assert retrieved_session_item is not None
     assert retrieved_session_item.session.id == db_session.id
     assert retrieved_session_item.item.text == "молоко"
 
@@ -144,6 +146,7 @@ def test_session_item_completion(session: Session) -> None:
     session.commit()
 
     retrieved = session.query(SessionItem).first()
+    assert retrieved is not None
     assert retrieved.completed_at is not None
     assert retrieved.completed_at >= retrieved.displayed_at
 
@@ -196,6 +199,7 @@ def test_settings_update(session: Session) -> None:
     session.commit()
 
     retrieved = session.query(Settings).first()
+    assert retrieved is not None
     assert retrieved.show_syllables is False
     assert retrieved.dim_read_words is True
     assert retrieved.dim_future_words is True

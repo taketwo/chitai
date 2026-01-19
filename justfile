@@ -42,6 +42,31 @@ test-unit:
 test-integration:
     uv run pytest tests/integration/
 
+# Apply database migrations
+db-upgrade:
+    uv run alembic upgrade head
+
+# Create a new database migration
+db-create-migration MESSAGE:
+    uv run alembic revision --autogenerate -m "{{MESSAGE}}"
+
+# Rollback database by one migration
+db-downgrade:
+    uv run alembic downgrade -1
+
+# Reset database (delete and recreate from migrations)
+db-reset:
+    rm -f data/chitai.db
+    uv run alembic upgrade head
+
+# Show current database version
+db-current:
+    uv run alembic current
+
+# Show migration history
+db-history:
+    uv run alembic history
+
 # Start dev environment (builds image if needed)
 docker-up:
     docker compose -f docker/compose.yaml --profile dev up -d --build

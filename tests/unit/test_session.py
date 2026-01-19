@@ -15,8 +15,7 @@ def test_initial_state(session):
     """Test that SessionState initializes with empty state."""
     assert session.words == []
     assert session.current_word_index == 0
-    assert len(session.controllers) == 0
-    assert len(session.displays) == 0
+    assert len(session.clients) == 0
 
 
 @pytest.mark.asyncio

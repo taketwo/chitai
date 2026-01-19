@@ -22,47 +22,31 @@ class SessionState:
         Words from the current text being displayed
     current_word_index : int
         Index of the currently highlighted word (0-based)
-    controllers : set[WebSocket]
-        Connected controller clients (phones)
-    displays : set[WebSocket]
-        Connected display clients (tablets)
+    clients : set[WebSocket]
+        Connected clients (controllers and displays)
 
     """
 
     words: list[str] = field(default_factory=list)
     current_word_index: int = 0
-    controllers: set[WebSocket] = field(default_factory=set)
-    displays: set[WebSocket] = field(default_factory=set)
+    clients: set[WebSocket] = field(default_factory=set)
 
-    async def add_controller(self, websocket: WebSocket) -> None:
-        """Add a controller client to the session.
+    async def add_client(self, websocket: WebSocket, role: str) -> None:
+        """Add a client to the session.
 
         Parameters
         ----------
         websocket : WebSocket
-            The controller's WebSocket connection
+            The client's WebSocket connection
+        role : str
+            Client role (for logging): 'controller' or 'display'
 
         """
-        self.controllers.add(websocket)
+        self.clients.add(websocket)
         logger.info(
-            "Controller connected. Total controllers: %d", len(self.controllers)
+            "%s connected. Total clients: %d", role.capitalize(), len(self.clients)
         )
-        # Send current state to newly connected controller
-        if self.words:
-            await self._send_state(websocket)
-
-    async def add_display(self, websocket: WebSocket) -> None:
-        """Add a display client to the session.
-
-        Parameters
-        ----------
-        websocket : WebSocket
-            The display's WebSocket connection
-
-        """
-        self.displays.add(websocket)
-        logger.info("Display connected. Total displays: %d", len(self.displays))
-        # Send current state to newly connected display
+        # Send current state to newly connected client
         if self.words:
             await self._send_state(websocket)
 
@@ -75,13 +59,8 @@ class SessionState:
             The client's WebSocket connection
 
         """
-        self.controllers.discard(websocket)
-        self.displays.discard(websocket)
-        logger.info(
-            "Client disconnected. Controllers: %d, Displays: %d",
-            len(self.controllers),
-            len(self.displays),
-        )
+        self.clients.discard(websocket)
+        logger.info("Client disconnected. Total clients: %d", len(self.clients))
 
     async def set_text(self, text: str) -> None:
         """Set the current text and broadcast to all displays.
@@ -127,10 +106,8 @@ class SessionState:
 
     async def _broadcast_state(self) -> None:
         """Broadcast current state to all connected clients."""
-        for display in self.displays:
-            await self._send_state(display)
-        for controller in self.controllers:
-            await self._send_state(controller)
+        for client in self.clients:
+            await self._send_state(client)
 
     async def _send_state(self, websocket: WebSocket) -> None:
         """Send current state to a specific client.
@@ -158,5 +135,4 @@ class SessionState:
         """Reset session state."""
         self.words.clear()
         self.current_word_index = 0
-        self.controllers.clear()
-        self.displays.clear()
+        self.clients.clear()

@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     """
 
     reload: bool = False
-    cert_dir: str = "/app/data/certs"
+    cert_dir: str = "data/certs"
     database_url: str = "sqlite:///data/chitai.db"
 
     class Config:

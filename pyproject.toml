@@ -5,9 +5,11 @@ description = "Reading practice tool"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+  "alembic>=1.18.1",
   "fastapi>=0.128.0",
   "pydantic-settings>=2.12.0",
   "rusyll>=0.1.1",
+  "sqlalchemy>=2.0.45",
   "uvicorn>=0.40.0",
   "websockets>=16.0",
 ]
@@ -42,6 +44,13 @@ lint.per-file-ignores."tests/**/*.py" = [
 ]
 lint.per-file-ignores."docker/**/*.py" = [
   "INP001", # Docker scripts are not part of a package
+]
+lint.per-file-ignores."alembic/**/*.py" = [
+  "INP001", # Alembic files are not part of a package
+  "D100",   # Alembic files don't need module docstrings
+  "D400",   # Alembic migration docstrings have special format
+  "ERA001", # Alembic template includes commented examples
+  "TC003",  # Alembic migrations need runtime type imports
 ]
 
 [tool.pytest.ini_options]

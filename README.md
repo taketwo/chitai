@@ -71,6 +71,9 @@ This stops all containers and prevents them from restarting on reboot.
 # Install dependencies
 uv sync
 
+# Set up database
+just db-upgrade
+
 # Run all checks (format, lint, type)
 just check
 
@@ -80,6 +83,23 @@ just test
 # Auto-fix formatting and linting issues
 just fix
 ```
+
+### Database
+
+The application uses SQLite with Alembic for schema migrations:
+
+```bash
+# Apply pending migrations
+just db-upgrade
+
+# Reset database (delete and recreate from migrations)
+just db-reset
+
+# Create a new migration after model changes
+just db-create-migration "description"
+```
+
+Database file is stored at `data/chitai.db`. Migrations run automatically on server startup in production.
 
 ### Docker development workflow
 

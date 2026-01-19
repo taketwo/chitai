@@ -9,4 +9,7 @@ if [ ! -f "$CERT_DIR/cert.pem" ] || [ ! -f "$CERT_DIR/key.pem" ]; then
   /app/docker/generate-cert.sh
 fi
 
+echo "Running database migrations..."
+uv run alembic upgrade head
+
 exec uv run main.py

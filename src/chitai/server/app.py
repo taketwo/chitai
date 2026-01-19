@@ -41,22 +41,18 @@ async def websocket_endpoint(
     await websocket.accept()
     session = websocket.app.state.session
 
-    if role == "controller":
-        await session.add_controller(websocket)
-    elif role == "display":
-        await session.add_display(websocket)
-    else:
+    if role not in ("controller", "display"):
         logger.warning("Unknown role: %s", role)
         await websocket.close()
         return
+
+    await session.add_client(websocket, role)
 
     try:
         while True:
             data = await websocket.receive_json()
             logger.info("Received from %s: %s", role, data)
-
-            if role == "controller":
-                await _handle_controller_message(websocket, data)
+            await _handle_message(websocket, data)
 
     except WebSocketDisconnect:
         logger.info("%s disconnected", role.capitalize())
@@ -66,13 +62,13 @@ async def websocket_endpoint(
         session.remove_client(websocket)
 
 
-async def _handle_controller_message(websocket: WebSocket, data: dict) -> None:
-    """Handle messages from controller clients.
+async def _handle_message(websocket: WebSocket, data: dict) -> None:
+    """Handle messages from any client.
 
     Parameters
     ----------
     websocket : WebSocket
-        The controller's WebSocket connection
+        The client's WebSocket connection
     data : dict
         The message data
 

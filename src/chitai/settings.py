@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -12,14 +12,11 @@ class Settings(BaseSettings):
     For example, CHITAI_RELOAD=1 sets reload=True.
     """
 
+    model_config = SettingsConfigDict(env_prefix="CHITAI_")
+
     reload: bool = False
     cert_dir: str = "data/certs"
     database_url: str = "sqlite:///data/chitai.db"
-
-    class Config:
-        """Pydantic configuration."""
-
-        env_prefix = "CHITAI_"
 
     @property
     def ssl_certfile(self) -> str:

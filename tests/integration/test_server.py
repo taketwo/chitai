@@ -25,7 +25,7 @@ async def test_display_connection():
 
 
 @pytest.mark.asyncio
-async def test_websocket_controller_sets_state():
+async def test_controller_sets_state():
     """Test that controller can set text state and receives state broadcast."""
     async with connect_controller() as ws:
         await ws.receive_json()  # Initial state
@@ -44,7 +44,7 @@ async def test_websocket_controller_sets_state():
 
 
 @pytest.mark.asyncio
-async def test_websocket_display_receives_state():
+async def test_display_receives_state():
     """Test that display receives current state on connect."""
     await app.state.session.set_text("черепаха молоко")
 
@@ -56,7 +56,7 @@ async def test_websocket_display_receives_state():
 
 
 @pytest.mark.asyncio
-async def test_websocket_controller_to_display_flow():
+async def test_controller_to_display_flow():
     """Test basic flow: controller sends text, display receives it."""
     async with connect_clients() as (controller_ws, display_ws):
         await display_ws.receive_json()  # Initial state
@@ -76,7 +76,7 @@ async def test_websocket_controller_to_display_flow():
 
 
 @pytest.mark.asyncio
-async def test_websocket_advance_word_forward():
+async def test_advance_word_forward():
     """Test advancing to next word broadcasts state."""
     async with connect_clients() as (controller_ws, display_ws):
         await display_ws.receive_json()  # Initial state
@@ -95,7 +95,7 @@ async def test_websocket_advance_word_forward():
 
 
 @pytest.mark.asyncio
-async def test_websocket_advance_word_backward():
+async def test_advance_word_backward():
     """Test going back to previous word broadcasts state."""
     async with connect_clients() as (controller_ws, display_ws):
         await display_ws.receive_json()  # Initial state
@@ -121,7 +121,7 @@ async def test_websocket_advance_word_backward():
 
 
 @pytest.mark.asyncio
-async def test_websocket_start_session(db_session):
+async def test_start_session(db_session):
     """Test that start_session creates a database session."""
     async with connect_controller() as controller_ws:
         initial_state = await controller_ws.receive_json()
@@ -143,7 +143,7 @@ async def test_websocket_start_session(db_session):
 
 
 @pytest.mark.asyncio
-async def test_websocket_end_session(db_session):
+async def test_end_session(db_session):
     """Test that end_session marks session as ended."""
     async with connect_controller() as controller_ws:
         await controller_ws.receive_json()  # Initial state
@@ -165,7 +165,7 @@ async def test_websocket_end_session(db_session):
 
 
 @pytest.mark.asyncio
-async def test_websocket_start_session_broadcasts_to_all_clients():
+async def test_start_session_broadcasts_to_all_clients():
     """Test that state is broadcast to all connected clients when session starts."""
     async with connect_clients() as (controller_ws, display_ws):
         await display_ws.receive_json()  # Initial state
@@ -186,7 +186,7 @@ async def test_websocket_start_session_broadcasts_to_all_clients():
 
 
 @pytest.mark.asyncio
-async def test_websocket_ignore_duplicate_start_session():
+async def test_ignore_duplicate_start_session():
     """Test that second start_session is ignored if session already active."""
     async with connect_controller() as controller_ws:
         await controller_ws.receive_json()  # Initial state

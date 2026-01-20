@@ -7,7 +7,7 @@ from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 from chitai.db.engine import get_session
-from chitai.db.models import Language
+from chitai.db.models import Item, Language, SessionItem
 from chitai.db.models import Session as DBSession
 from chitai.server.session import SessionState
 
@@ -87,7 +87,7 @@ async def _handle_message(websocket: WebSocket, data: dict) -> None:
     elif message_type == "add_item":
         text = data.get("payload", {}).get("text")
         if text:
-            await session_state.set_text(text)
+            await _handle_add_item(session_state, text)
         else:
             logger.warning("add_item message missing text")
     elif message_type == "advance_word":
@@ -138,7 +138,18 @@ async def _handle_end_session(session_state: SessionState) -> None:
     with get_session() as db_session:
         db_session_obj = db_session.get(DBSession, session_state.session_id)
         if db_session_obj:
-            db_session_obj.ended_at = datetime.now(UTC)
+            now = datetime.now(UTC)
+            db_session_obj.ended_at = now
+
+            # Complete any incomplete SessionItems
+            incomplete_items = (
+                db_session.query(SessionItem)
+                .filter_by(session_id=session_state.session_id, completed_at=None)
+                .all()
+            )
+            for session_item in incomplete_items:
+                session_item.completed_at = now
+
             db_session.commit()
 
     logger.info("Session ended: %s", session_state.session_id)
@@ -150,3 +161,62 @@ async def _handle_end_session(session_state: SessionState) -> None:
     session_state.current_word_index = 0
 
     await session_state.broadcast_state()
+
+
+async def _handle_add_item(session_state: SessionState, text: str) -> None:
+    """Handle add_item message.
+
+    Creates or retrieves an Item, completes the previous SessionItem if any, and
+    creates a new SessionItem for the current item.
+
+    Parameters
+    ----------
+    session_state : SessionState
+        The session state
+    text : str
+        The text to add
+
+    """
+    if session_state.session_id is None:
+        logger.warning("Cannot add item: no active session")
+        return
+
+    with get_session() as db_session:
+        db_session_obj = db_session.get(DBSession, session_state.session_id)
+        if not db_session_obj:
+            logger.error("Session not found: %s", session_state.session_id)
+            return
+
+        language = db_session_obj.language
+
+        # Check if item already exists
+        item = db_session.query(Item).filter_by(text=text, language=language).first()
+        if not item:
+            item = Item(text=text, language=language)
+            db_session.add(item)
+            db_session.flush()  # Get the item ID
+
+        # Complete previous SessionItem if exists
+        if session_state.current_item_id:
+            prev_session_item = (
+                db_session.query(SessionItem)
+                .filter_by(
+                    session_id=session_state.session_id,
+                    item_id=session_state.current_item_id,
+                    completed_at=None,
+                )
+                .first()
+            )
+            if prev_session_item:
+                prev_session_item.completed_at = datetime.now(UTC)
+
+        session_item = SessionItem(
+            session_id=session_state.session_id,
+            item_id=item.id,
+        )
+        db_session.add(session_item)
+        db_session.commit()
+
+        session_state.current_item_id = item.id
+
+    await session_state.set_text(text)

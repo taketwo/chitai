@@ -7,17 +7,8 @@ from httpx import AsyncClient
 from httpx_ws import aconnect_ws
 from httpx_ws.transport import ASGIWebSocketTransport
 
-from chitai.db.engine import get_session
 from chitai.db.models import Session as DBSession
 from chitai.server.app import app
-
-
-@pytest.fixture(autouse=True)
-def reset_session():
-    """Reset session state before each test."""
-    app.state.session.reset()
-    yield
-    app.state.session.reset()
 
 
 @pytest.mark.asyncio
@@ -165,39 +156,33 @@ async def test_websocket_advance_word_backward():
 
 
 @pytest.mark.asyncio
-async def test_websocket_start_session():
+async def test_websocket_start_session(db_session):
     """Test that start_session creates a database session."""
     async with (
         ASGIWebSocketTransport(app=app) as transport,
         AsyncClient(transport=transport, base_url="http://test") as client,
         aconnect_ws("http://test/ws?role=controller", client) as controller_ws,
     ):
-        # Client should receive initial state with no session
         initial_state = await controller_ws.receive_json()
         assert initial_state["type"] == "state"
         assert initial_state["payload"]["session_id"] is None
 
-        # Start session
         await controller_ws.send_json({"type": "start_session"})
 
-        # Should receive state message with session_id
         data = await controller_ws.receive_json()
         assert data["type"] == "state"
         assert data["payload"]["session_id"] is not None
         session_id = data["payload"]["session_id"]
 
-        # Verify session_id is set in state
         assert app.state.session.session_id == session_id
 
-        # Verify database session was created
-        with get_session() as db_session:
-            db_session_obj = db_session.get(DBSession, session_id)
-            assert db_session_obj is not None
-            assert db_session_obj.ended_at is None
+        db_session_obj = db_session.get(DBSession, session_id)
+        assert db_session_obj is not None
+        assert db_session_obj.ended_at is None
 
 
 @pytest.mark.asyncio
-async def test_websocket_end_session():
+async def test_websocket_end_session(db_session):
     """Test that end_session marks session as ended."""
     async with (
         ASGIWebSocketTransport(app=app) as transport,
@@ -217,10 +202,9 @@ async def test_websocket_end_session():
         assert data["payload"]["session_id"] is None
         assert app.state.session.session_id is None
 
-        with get_session() as db_session:
-            db_session_obj = db_session.get(DBSession, session_id)
-            assert db_session_obj is not None
-            assert db_session_obj.ended_at is not None
+        db_session_obj = db_session.get(DBSession, session_id)
+        assert db_session_obj is not None
+        assert db_session_obj.ended_at is not None
 
 
 @pytest.mark.asyncio

@@ -18,6 +18,10 @@ class SessionState:
 
     Attributes
     ----------
+    session_id : str | None
+        Database session ID (None if no active session)
+    current_item_id : str | None
+        Current item being displayed (None if no item)
     words : list[str]
         Words from the current text being displayed
     current_word_index : int
@@ -27,6 +31,8 @@ class SessionState:
 
     """
 
+    session_id: str | None = None
+    current_item_id: str | None = None
     words: list[str] = field(default_factory=list)
     current_word_index: int = 0
     clients: set[WebSocket] = field(default_factory=set)
@@ -133,6 +139,8 @@ class SessionState:
 
     def reset(self) -> None:
         """Reset session state."""
+        self.session_id = None
+        self.current_item_id = None
         self.words.clear()
         self.current_word_index = 0
         self.clients.clear()

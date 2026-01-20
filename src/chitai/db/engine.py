@@ -1,5 +1,6 @@
 """Database engine and session management."""
 
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 from sqlalchemy import create_engine
@@ -23,6 +24,7 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+@contextmanager
 def get_session() -> Generator[Session]:
     """Get a database session.
 

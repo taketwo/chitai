@@ -1,10 +1,14 @@
 """FastAPI application with WebSocket endpoint."""
 
 import logging
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
+from chitai.db.engine import get_session
+from chitai.db.models import Language
+from chitai.db.models import Session as DBSession
 from chitai.server.session import SessionState
 
 logging.basicConfig(level=logging.INFO)
@@ -73,17 +77,76 @@ async def _handle_message(websocket: WebSocket, data: dict) -> None:
         The message data
 
     """
-    session = websocket.app.state.session
+    session_state = websocket.app.state.session
     message_type = data.get("type")
 
-    if message_type == "add_item":
+    if message_type == "start_session":
+        await _handle_start_session(session_state)
+    elif message_type == "end_session":
+        await _handle_end_session(session_state)
+    elif message_type == "add_item":
         text = data.get("payload", {}).get("text")
         if text:
-            await session.set_text(text)
+            await session_state.set_text(text)
         else:
             logger.warning("add_item message missing text")
     elif message_type == "advance_word":
         delta = data.get("payload", {}).get("delta", 1)
-        await session.advance_word(delta)
+        await session_state.advance_word(delta)
     else:
         logger.warning("Unknown message type: %s", message_type)
+
+
+async def _handle_start_session(session_state: SessionState) -> None:
+    """Handle start_session message.
+
+    Parameters
+    ----------
+    session_state : SessionState
+        The session state
+
+    """
+    if session_state.session_id is not None:
+        logger.warning("Session already active, ignoring start_session")
+        return
+
+    with get_session() as db_session:
+        db_session_obj = DBSession(language=Language.RUSSIAN)
+        db_session.add(db_session_obj)
+        db_session.commit()
+        session_id = db_session_obj.id
+
+    session_state.session_id = session_id
+    logger.info("Session started: %s", session_id)
+
+    await session_state.broadcast_state()
+
+
+async def _handle_end_session(session_state: SessionState) -> None:
+    """Handle end_session message.
+
+    Parameters
+    ----------
+    session_state : SessionState
+        The session state
+
+    """
+    if session_state.session_id is None:
+        logger.warning("No active session to end")
+        return
+
+    with get_session() as db_session:
+        db_session_obj = db_session.get(DBSession, session_state.session_id)
+        if db_session_obj:
+            db_session_obj.ended_at = datetime.now(UTC)
+            db_session.commit()
+
+    logger.info("Session ended: %s", session_state.session_id)
+
+    # Clear session_id before broadcasting so clients see None
+    session_state.session_id = None
+    session_state.current_item_id = None
+    session_state.words.clear()
+    session_state.current_word_index = 0
+
+    await session_state.broadcast_state()

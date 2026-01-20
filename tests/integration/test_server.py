@@ -7,36 +7,39 @@ import pytest
 from chitai.db.models import Session as DBSession
 from chitai.server.app import app
 
-from .helpers import connect_clients, connect_controller, connect_display
+from .helpers import (
+    connect_clients,
+    connect_controller,
+    connect_display,
+    started_session,
+)
 
 
 @pytest.mark.asyncio
 async def test_controller_connection():
     """Test that controller can connect successfully."""
-    async with connect_controller() as ws:
-        assert ws is not None
+    async with connect_controller() as controller_ws:
+        assert controller_ws is not None
 
 
 @pytest.mark.asyncio
 async def test_display_connection():
     """Test that display can connect successfully."""
-    async with connect_display() as ws:
-        assert ws is not None
+    async with connect_display() as display_ws:
+        assert display_ws is not None
 
 
 @pytest.mark.asyncio
 async def test_controller_sets_state():
     """Test that controller can set text state and receives state broadcast."""
-    async with connect_controller() as ws:
-        await ws.receive_json()  # Initial state
-
-        await ws.send_json(
+    async with started_session() as (controller_ws, _, _):
+        await controller_ws.send_json(
             {
                 "type": "add_item",
                 "payload": {"text": "молоко хлеб"},
             }
         )
-        data = await ws.receive_json()
+        data = await controller_ws.receive_json()
         assert data["type"] == "state"
         assert data["payload"]["words"] == ["молоко", "хлеб"]
         assert app.state.session.words == ["молоко", "хлеб"]
@@ -48,8 +51,8 @@ async def test_display_receives_state():
     """Test that display receives current state on connect."""
     await app.state.session.set_text("черепаха молоко")
 
-    async with connect_display() as ws:
-        data = await ws.receive_json()
+    async with connect_display() as display_ws:
+        data = await display_ws.receive_json()
         assert data["type"] == "state"
         assert data["payload"]["words"] == ["черепаха", "молоко"]
         assert data["payload"]["current_word_index"] == 0
@@ -58,10 +61,7 @@ async def test_display_receives_state():
 @pytest.mark.asyncio
 async def test_controller_to_display_flow():
     """Test basic flow: controller sends text, display receives it."""
-    async with connect_clients() as (controller_ws, display_ws):
-        await display_ws.receive_json()  # Initial state
-        await controller_ws.receive_json()  # Initial state
-
+    async with started_session() as (controller_ws, display_ws, _):
         await controller_ws.send_json(
             {
                 "type": "add_item",
@@ -78,10 +78,7 @@ async def test_controller_to_display_flow():
 @pytest.mark.asyncio
 async def test_advance_word_forward():
     """Test advancing to next word broadcasts state."""
-    async with connect_clients() as (controller_ws, display_ws):
-        await display_ws.receive_json()  # Initial state
-        await controller_ws.receive_json()  # Initial state
-
+    async with started_session() as (controller_ws, display_ws, _):
         await controller_ws.send_json(
             {"type": "add_item", "payload": {"text": "один два три"}}
         )
@@ -97,10 +94,7 @@ async def test_advance_word_forward():
 @pytest.mark.asyncio
 async def test_advance_word_backward():
     """Test going back to previous word broadcasts state."""
-    async with connect_clients() as (controller_ws, display_ws):
-        await display_ws.receive_json()  # Initial state
-        await controller_ws.receive_json()  # Initial state
-
+    async with started_session() as (controller_ws, display_ws, _):
         await controller_ws.send_json(
             {"type": "add_item", "payload": {"text": "один два три"}}
         )

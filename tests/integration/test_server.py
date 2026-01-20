@@ -1,10 +1,14 @@
 """Integration tests for WebSocket server."""
 
+import asyncio
+
 import pytest
 from httpx import AsyncClient
 from httpx_ws import aconnect_ws
 from httpx_ws.transport import ASGIWebSocketTransport
 
+from chitai.db.engine import get_session
+from chitai.db.models import Session as DBSession
 from chitai.server.app import app
 
 
@@ -46,13 +50,14 @@ async def test_websocket_controller_sets_state():
         AsyncClient(transport=transport, base_url="http://test") as client,
         aconnect_ws("http://test/ws?role=controller", client) as ws,
     ):
+        await ws.receive_json()  # Initial state
+
         await ws.send_json(
             {
                 "type": "add_item",
                 "payload": {"text": "молоко хлеб"},
             }
         )
-        # Controller now receives state broadcasts
         data = await ws.receive_json()
         assert data["type"] == "state"
         assert data["payload"]["words"] == ["молоко", "хлеб"]
@@ -86,6 +91,9 @@ async def test_websocket_controller_to_display_flow():
         aconnect_ws("http://test/ws?role=display", client) as display_ws,
         aconnect_ws("http://test/ws?role=controller", client) as controller_ws,
     ):
+        await display_ws.receive_json()  # Initial state
+        await controller_ws.receive_json()  # Initial state
+
         await controller_ws.send_json(
             {
                 "type": "add_item",
@@ -108,10 +116,13 @@ async def test_websocket_advance_word_forward():
         aconnect_ws("http://test/ws?role=display", client) as display_ws,
         aconnect_ws("http://test/ws?role=controller", client) as controller_ws,
     ):
+        await display_ws.receive_json()  # Initial state
+        await controller_ws.receive_json()  # Initial state
+
         await controller_ws.send_json(
             {"type": "add_item", "payload": {"text": "один два три"}}
         )
-        await display_ws.receive_json()  # Initial state
+        await display_ws.receive_json()  # State after add_item
 
         await controller_ws.send_json({"type": "advance_word", "payload": {"delta": 1}})
 
@@ -129,10 +140,13 @@ async def test_websocket_advance_word_backward():
         aconnect_ws("http://test/ws?role=display", client) as display_ws,
         aconnect_ws("http://test/ws?role=controller", client) as controller_ws,
     ):
+        await display_ws.receive_json()  # Initial state
+        await controller_ws.receive_json()  # Initial state
+
         await controller_ws.send_json(
             {"type": "add_item", "payload": {"text": "один два три"}}
         )
-        await display_ws.receive_json()  # Initial state
+        await display_ws.receive_json()  # State after add_item
 
         # Advance twice
         await controller_ws.send_json({"type": "advance_word", "payload": {"delta": 1}})
@@ -148,3 +162,110 @@ async def test_websocket_advance_word_backward():
         data = await display_ws.receive_json()
         assert data["type"] == "state"
         assert data["payload"]["current_word_index"] == 1
+
+
+@pytest.mark.asyncio
+async def test_websocket_start_session():
+    """Test that start_session creates a database session."""
+    async with (
+        ASGIWebSocketTransport(app=app) as transport,
+        AsyncClient(transport=transport, base_url="http://test") as client,
+        aconnect_ws("http://test/ws?role=controller", client) as controller_ws,
+    ):
+        # Client should receive initial state with no session
+        initial_state = await controller_ws.receive_json()
+        assert initial_state["type"] == "state"
+        assert initial_state["payload"]["session_id"] is None
+
+        # Start session
+        await controller_ws.send_json({"type": "start_session"})
+
+        # Should receive state message with session_id
+        data = await controller_ws.receive_json()
+        assert data["type"] == "state"
+        assert data["payload"]["session_id"] is not None
+        session_id = data["payload"]["session_id"]
+
+        # Verify session_id is set in state
+        assert app.state.session.session_id == session_id
+
+        # Verify database session was created
+        with get_session() as db_session:
+            db_session_obj = db_session.get(DBSession, session_id)
+            assert db_session_obj is not None
+            assert db_session_obj.ended_at is None
+
+
+@pytest.mark.asyncio
+async def test_websocket_end_session():
+    """Test that end_session marks session as ended."""
+    async with (
+        ASGIWebSocketTransport(app=app) as transport,
+        AsyncClient(transport=transport, base_url="http://test") as client,
+        aconnect_ws("http://test/ws?role=controller", client) as controller_ws,
+    ):
+        await controller_ws.receive_json()  # Initial state
+
+        await controller_ws.send_json({"type": "start_session"})
+        start_data = await controller_ws.receive_json()
+        session_id = start_data["payload"]["session_id"]
+
+        await controller_ws.send_json({"type": "end_session"})
+
+        data = await controller_ws.receive_json()
+        assert data["type"] == "state"
+        assert data["payload"]["session_id"] is None
+        assert app.state.session.session_id is None
+
+        with get_session() as db_session:
+            db_session_obj = db_session.get(DBSession, session_id)
+            assert db_session_obj is not None
+            assert db_session_obj.ended_at is not None
+
+
+@pytest.mark.asyncio
+async def test_websocket_start_session_broadcasts_to_all_clients():
+    """Test that state is broadcast to all connected clients when session starts."""
+    async with (
+        ASGIWebSocketTransport(app=app) as transport,
+        AsyncClient(transport=transport, base_url="http://test") as client,
+        aconnect_ws("http://test/ws?role=display", client) as display_ws,
+        aconnect_ws("http://test/ws?role=controller", client) as controller_ws,
+    ):
+        await display_ws.receive_json()  # Initial state
+        await controller_ws.receive_json()  # Initial state
+
+        await controller_ws.send_json({"type": "start_session"})
+
+        controller_data = await controller_ws.receive_json()
+        display_data = await display_ws.receive_json()
+
+        assert controller_data["type"] == "state"
+        assert display_data["type"] == "state"
+        assert controller_data["payload"]["session_id"] is not None
+        assert (
+            controller_data["payload"]["session_id"]
+            == display_data["payload"]["session_id"]
+        )
+
+
+@pytest.mark.asyncio
+async def test_websocket_ignore_duplicate_start_session():
+    """Test that second start_session is ignored if session already active."""
+    async with (
+        ASGIWebSocketTransport(app=app) as transport,
+        AsyncClient(transport=transport, base_url="http://test") as client,
+        aconnect_ws("http://test/ws?role=controller", client) as controller_ws,
+    ):
+        await controller_ws.receive_json()  # Initial state
+
+        await controller_ws.send_json({"type": "start_session"})
+        data1 = await controller_ws.receive_json()
+        session_id1 = data1["payload"]["session_id"]
+
+        await controller_ws.send_json({"type": "start_session"})
+
+        with pytest.raises(asyncio.TimeoutError):
+            await asyncio.wait_for(controller_ws.receive_json(), timeout=0.1)
+
+        assert app.state.session.session_id == session_id1

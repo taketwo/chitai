@@ -52,9 +52,7 @@ class SessionState:
         logger.info(
             "%s connected. Total clients: %d", role.capitalize(), len(self.clients)
         )
-        # Send current state to newly connected client
-        if self.words:
-            await self._send_state(websocket)
+        await self._send_state(websocket)
 
     def remove_client(self, websocket: WebSocket) -> None:
         """Remove a client from the session.
@@ -82,7 +80,7 @@ class SessionState:
         self.words = tokenize(sanitize(text))
         self.current_word_index = 0
         logger.info("Text updated: %d words", len(self.words))
-        await self._broadcast_state()
+        await self.broadcast_state()
 
     async def advance_word(self, delta: int = 1) -> None:
         """Move to a different word by a given offset (with clamping).
@@ -106,11 +104,11 @@ class SessionState:
         if new_index != self.current_word_index:
             self.current_word_index = new_index
             logger.info("Word index: %d/%d", new_index + 1, len(self.words))
-            await self._broadcast_state()
+            await self.broadcast_state()
         else:
             logger.debug("Word index unchanged: already at boundary")
 
-    async def _broadcast_state(self) -> None:
+    async def broadcast_state(self) -> None:
         """Broadcast current state to all connected clients."""
         for client in self.clients:
             await self._send_state(client)
@@ -127,6 +125,7 @@ class SessionState:
         message: dict[str, Any] = {
             "type": "state",
             "payload": {
+                "session_id": self.session_id,
                 "words": self.words,
                 "syllables": [syllabify(word) for word in self.words],
                 "current_word_index": self.current_word_index,

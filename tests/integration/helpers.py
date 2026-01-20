@@ -47,7 +47,29 @@ async def connect_clients() -> AsyncGenerator[
     async with (
         ASGIWebSocketTransport(app=app) as transport,
         AsyncClient(transport=transport, base_url="http://test") as client,
-        aconnect_ws("http://test/ws?role=controller", client) as controller,
-        aconnect_ws("http://test/ws?role=display", client) as display,
+        aconnect_ws("http://test/ws?role=controller", client) as controller_ws,
+        aconnect_ws("http://test/ws?role=display", client) as display_ws,
     ):
-        yield controller, display
+        yield controller_ws, display_ws
+
+
+@asynccontextmanager
+async def started_session() -> AsyncGenerator[
+    tuple[AsyncWebSocketSession, AsyncWebSocketSession, str]
+]:
+    """Connect controller and display, start a session.
+
+    Returns (controller_ws, display_ws, session_id) tuple. Use this when the test needs
+    an active session but starting the session is not what's being tested.
+    """
+    async with connect_clients() as (controller_ws, display_ws):
+        # Consume initial state messages
+        await controller_ws.receive_json()
+        await display_ws.receive_json()
+
+        # Start session
+        await controller_ws.send_json({"type": "start_session"})
+        controller_data = await controller_ws.receive_json()
+        await display_ws.receive_json()
+        session_id = controller_data["payload"]["session_id"]
+        yield controller_ws, display_ws, session_id

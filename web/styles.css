@@ -74,6 +74,14 @@ body.controller {
   margin-bottom: 20px;
 }
 
+.controller .session-controls {
+  margin-bottom: 20px;
+}
+
+.controller .session-controls button {
+  width: 100%;
+}
+
 .controller .input-group {
   background: white;
   padding: 20px;

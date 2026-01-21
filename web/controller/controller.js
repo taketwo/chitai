@@ -4,6 +4,10 @@ const submitBtn = document.getElementById("submitBtn");
 const backBtn = document.getElementById("backBtn");
 const advanceBtn = document.getElementById("advanceBtn");
 const currentWordEl = document.getElementById("currentWord");
+const startSessionBtn = document.getElementById("startSessionBtn");
+const endSessionBtn = document.getElementById("endSessionBtn");
+
+let sessionActive = false;
 
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const ws = new WebSocket(
@@ -14,9 +18,7 @@ ws.onopen = () => {
   console.log("Connected");
   statusEl.textContent = "Connected";
   statusEl.className = "status connected";
-  submitBtn.disabled = false;
-  backBtn.disabled = false;
-  advanceBtn.disabled = false;
+  startSessionBtn.disabled = false;
 };
 
 ws.onmessage = (event) => {
@@ -24,7 +26,31 @@ ws.onmessage = (event) => {
   console.log("Received:", data);
 
   if (data.type === "state") {
-    const { words, current_word_index } = data.payload;
+    const { session_id, words, current_word_index } = data.payload;
+
+    // Update session state based on session_id presence
+    const wasActive = sessionActive;
+    sessionActive = session_id !== null;
+
+    // Update UI if session state changed
+    if (sessionActive && !wasActive) {
+      // Session started
+      startSessionBtn.style.display = "none";
+      endSessionBtn.style.display = "block";
+      endSessionBtn.disabled = false;
+      submitBtn.disabled = false;
+      backBtn.disabled = false;
+      advanceBtn.disabled = false;
+    } else if (!sessionActive && wasActive) {
+      // Session ended
+      startSessionBtn.style.display = "block";
+      startSessionBtn.disabled = false;
+      endSessionBtn.style.display = "none";
+      submitBtn.disabled = true;
+      backBtn.disabled = true;
+      advanceBtn.disabled = true;
+      document.querySelector(".controls").style.display = "none";
+    }
     if (words && words.length > 0) {
       document.querySelector(".controls").style.display = "flex";
       updateCurrentWord(words[current_word_index]);
@@ -74,6 +100,8 @@ ws.onclose = () => {
   console.log("Disconnected");
   statusEl.textContent = "Disconnected";
   statusEl.className = "status disconnected";
+  startSessionBtn.disabled = true;
+  endSessionBtn.disabled = true;
   submitBtn.disabled = true;
   backBtn.disabled = true;
   advanceBtn.disabled = true;
@@ -123,6 +151,22 @@ advanceBtn.addEventListener("click", () => {
     payload: {
       delta: 1,
     },
+  };
+  ws.send(JSON.stringify(message));
+  console.log("Sent:", message);
+});
+
+startSessionBtn.addEventListener("click", () => {
+  const message = {
+    type: "start_session",
+  };
+  ws.send(JSON.stringify(message));
+  console.log("Sent:", message);
+});
+
+endSessionBtn.addEventListener("click", () => {
+  const message = {
+    type: "end_session",
   };
   ws.send(JSON.stringify(message));
   console.log("Sent:", message);

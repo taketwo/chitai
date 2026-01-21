@@ -199,6 +199,25 @@ async def test_ignore_duplicate_start_session():
 
 
 @pytest.mark.asyncio
+async def test_reconnecting_client_receives_current_state():
+    """Test that clients connecting to active session receive current state."""
+    async with connect_controller() as controller_ws:
+        await controller_ws.receive_json()  # Initial state
+
+        # Start a session
+        await controller_ws.send_json({"type": "start_session"})
+        data = await controller_ws.receive_json()
+        session_id = data["payload"]["session_id"]
+
+    # Session is still active, connect a new client
+    async with connect_controller() as new_controller_ws:
+        # New client should immediately receive current state with session_id
+        data = await new_controller_ws.receive_json()
+        assert data["type"] == "state"
+        assert data["payload"]["session_id"] == session_id
+
+
+@pytest.mark.asyncio
 async def test_add_item_creates_item_and_session_item(db_session):
     """Test that add_item creates Item and SessionItem in database."""
     async with started_session() as (controller_ws, _, session_id):

@@ -71,13 +71,13 @@ db-history:
 docker-up:
     docker compose -f docker/compose.yaml --profile dev up -d --build
 
-# Stop containers
+# Stop dev environment
 docker-down:
-    docker compose -f docker/compose.yaml down
+    docker compose -f docker/compose.yaml --profile dev down
 
 # View container logs
 docker-logs:
-    docker compose -f docker/compose.yaml logs -f
+    docker compose -f docker/compose.yaml --profile dev logs -f
 
 # Rebuild and restart dev environment
 docker-restart:

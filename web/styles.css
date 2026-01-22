@@ -216,9 +216,9 @@ body.display {
   margin: 0 0.15em;
 }
 
-.display .placeholder {
-  color: #999;
-  font-size: 24px;
+.display .placeholder::before {
+  content: "🌀";
+  font-size: 50px;
 }
 
 @media (max-width: 768px) {

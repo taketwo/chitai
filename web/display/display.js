@@ -21,8 +21,7 @@ ws.onmessage = (event) => {
     if (words && words.length > 0) {
       renderWords(words, syllables, current_word_index);
     } else {
-      textDisplay.innerHTML =
-        '<span class="placeholder">Waiting for text...</span>';
+      textDisplay.innerHTML = '<span class="placeholder"></span>';
     }
   }
 };

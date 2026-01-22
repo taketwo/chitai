@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     reload: bool = False
     cert_dir: str = "data/certs"
     database_url: str = "sqlite:///data/chitai.db"
+    grace_period_seconds: int = 3600
 
     @property
     def ssl_certfile(self) -> str:

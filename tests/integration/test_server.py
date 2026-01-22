@@ -1,6 +1,7 @@
 """Integration tests for WebSocket server."""
 
 import asyncio
+from datetime import UTC
 
 import pytest
 
@@ -358,3 +359,129 @@ async def test_add_item_without_session_is_ignored(db_session):
         # Verify no Item was created
         items = db_session.query(Item).filter_by(text="молоко").all()
         assert len(items) == 0
+
+
+@pytest.mark.asyncio
+async def test_grace_period_timer_starts_on_last_disconnect(db_session):
+    """Test that grace period timer starts when last client disconnects."""
+    # Set short grace period for testing
+    app.state.grace_period_seconds = 0.1
+
+    async with started_session() as (controller_ws, _, session_id):
+        # Add an item so session has content
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "молоко"}}
+        )
+        await controller_ws.receive_json()  # state broadcast
+
+    # Both clients disconnected, grace period should start
+    assert app.state.disconnect_time is not None
+    assert app.state.grace_timer_task is not None
+    assert not app.state.grace_timer_task.done()
+
+    # Wait for grace period to expire
+    await asyncio.sleep(0.15)
+
+    # Session should be auto-ended
+    assert app.state.session.session_id is None
+    assert app.state.grace_timer_task is None
+    assert app.state.disconnect_time is None
+
+    # Verify session was ended in database
+    db_session.expire_all()
+    session_obj = db_session.get(DBSession, session_id)
+    assert session_obj.ended_at is not None
+
+
+@pytest.mark.asyncio
+async def test_grace_period_cancelled_on_reconnect(db_session):
+    """Test that grace period timer is cancelled when client reconnects."""
+    # Set short grace period for testing
+    app.state.grace_period_seconds = 0.2
+
+    # Start session with one client
+    async with connect_controller() as controller_ws:
+        await controller_ws.receive_json()  # Initial state
+        await controller_ws.send_json({"type": "start_session"})
+        data = await controller_ws.receive_json()
+        session_id = data["payload"]["session_id"]
+
+    # Client disconnected, grace period should start
+    assert app.state.disconnect_time is not None
+    assert app.state.grace_timer_task is not None
+    initial_task = app.state.grace_timer_task
+
+    # Wait a bit (but less than grace period)
+    await asyncio.sleep(0.05)
+
+    # Reconnect a client before grace period expires and keep it connected
+    async with connect_controller() as new_controller_ws:
+        data = await new_controller_ws.receive_json()
+        assert data["payload"]["session_id"] == session_id
+
+        # Grace period should be cancelled
+        assert app.state.disconnect_time is None
+        assert app.state.grace_timer_task is None
+
+        # Original task should be cancelled
+        assert initial_task.cancelled()
+
+        # Wait to ensure no auto-end happens while client is still connected
+        await asyncio.sleep(0.2)
+
+        # Session should still exist in database (not auto-ended)
+        db_session.expire_all()
+        session_obj = db_session.get(DBSession, session_id)
+        assert session_obj.ended_at is None
+
+
+@pytest.mark.asyncio
+async def test_grace_period_uses_disconnect_time_for_ended_at(db_session):
+    """Test that session ended_at uses disconnect_time when grace period expires."""
+    # Set short grace period for testing
+    app.state.grace_period_seconds = 0.1
+
+    async with started_session() as (_, __, session_id):
+        pass  # Just start and immediately disconnect
+
+    # Capture disconnect time
+    disconnect_time = app.state.disconnect_time
+    assert disconnect_time is not None
+
+    # Wait for grace period to expire
+    await asyncio.sleep(0.15)
+
+    # Session should be auto-ended
+    assert app.state.session.session_id is None
+
+    # Verify ended_at matches disconnect_time (not current time)
+    db_session.expire_all()
+    session_obj = db_session.get(DBSession, session_id)
+    assert session_obj.ended_at is not None
+    # Times should be very close (within 1 second to account for timing variations)
+    # Make ended_at timezone-aware for comparison (SQLite stores naive datetimes)
+    ended_at_aware = session_obj.ended_at.replace(tzinfo=UTC)
+    time_diff = abs((ended_at_aware - disconnect_time).total_seconds())
+    assert time_diff < 1.0
+
+
+@pytest.mark.asyncio
+async def test_grace_period_no_timer_without_active_session():
+    """Test that grace period timer doesn't start if no session is active."""
+    # Set short grace period for testing
+    app.state.grace_period_seconds = 0.1
+
+    # Connect and disconnect without starting a session
+    async with connect_controller() as controller_ws:
+        await controller_ws.receive_json()  # Initial state
+        # Don't start session, just disconnect
+
+    # No grace period timer should start
+    assert app.state.disconnect_time is None
+    assert app.state.grace_timer_task is None
+
+    # Wait to ensure nothing happens
+    await asyncio.sleep(0.15)
+
+    # State should remain clean
+    assert app.state.session.session_id is None

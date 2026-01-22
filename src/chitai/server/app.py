@@ -1,15 +1,21 @@
 """FastAPI application with WebSocket endpoint."""
 
+import asyncio
 import logging
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 from chitai.db.engine import get_session
+
+if TYPE_CHECKING:
+    from starlette.datastructures import State
 from chitai.db.models import Item, Language, SessionItem
 from chitai.db.models import Session as DBSession
 from chitai.server.session import SessionState
+from chitai.settings import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,6 +24,9 @@ app = FastAPI(title="Chitai")
 
 app.state.session = SessionState()
 app.state.clients = set()
+app.state.grace_period_seconds = settings.grace_period_seconds
+app.state.disconnect_time = None
+app.state.grace_timer_task = None
 
 app.mount("/web", StaticFiles(directory="web", html=True), name="web")
 
@@ -66,6 +75,33 @@ async def _broadcast_state(
         await _send_state(session_state, client)
 
 
+async def _grace_period_timer(app_state: State, grace_period_seconds: int) -> None:
+    """Background task that waits for grace period then auto-ends session.
+
+    Parameters
+    ----------
+    app_state : State
+        FastAPI app state containing session and clients
+    grace_period_seconds : int
+        Grace period in seconds
+
+    """
+    try:
+        await asyncio.sleep(grace_period_seconds)
+        logger.info("Grace period expired, auto-ending session")
+        await _end_session(
+            app_state.session,
+            app_state.clients,
+            ended_at=app_state.disconnect_time,
+        )
+        # Clean up grace period state
+        app_state.disconnect_time = None
+        app_state.grace_timer_task = None
+    except asyncio.CancelledError:
+        logger.debug("Grace period timer cancelled")
+        raise
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,
@@ -92,6 +128,17 @@ async def websocket_endpoint(
 
     clients.add(websocket)
     logger.info("%s connected; total clients: %d", role.capitalize(), len(clients))
+
+    # Cancel grace period timer if clients are reconnecting
+    if (
+        websocket.app.state.grace_timer_task
+        and not websocket.app.state.grace_timer_task.done()
+    ):
+        logger.info("Client reconnected, cancelling grace period timer")
+        websocket.app.state.grace_timer_task.cancel()
+        websocket.app.state.grace_timer_task = None
+        websocket.app.state.disconnect_time = None
+
     await _send_state(session_state, websocket)
 
     try:
@@ -107,6 +154,18 @@ async def websocket_endpoint(
     finally:
         clients.discard(websocket)
         logger.info("Client disconnected; total clients: %d", len(clients))
+
+        # Start grace period timer if this was the last client and session is active
+        if len(clients) == 0 and session_state.session_id is not None:
+            websocket.app.state.disconnect_time = datetime.now(UTC)
+            grace_period = websocket.app.state.grace_period_seconds
+            logger.info(
+                "Last client disconnected, starting %ds grace period",
+                grace_period,
+            )
+            websocket.app.state.grace_timer_task = asyncio.create_task(
+                _grace_period_timer(websocket.app.state, grace_period)
+            )
 
 
 async def _handle_message(websocket: WebSocket, data: dict) -> None:
@@ -163,7 +222,11 @@ async def _start_session(session_state: SessionState, clients: set[WebSocket]) -
     await _broadcast_state(session_state, clients)
 
 
-async def _end_session(session_state: SessionState, clients: set[WebSocket]) -> None:
+async def _end_session(
+    session_state: SessionState,
+    clients: set[WebSocket],
+    ended_at: datetime | None = None,
+) -> None:
     """End the active reading session.
 
     Parameters
@@ -172,17 +235,21 @@ async def _end_session(session_state: SessionState, clients: set[WebSocket]) -> 
         The session state
     clients : set[WebSocket]
         Connected clients to broadcast to
+    ended_at : datetime | None
+        Optional timestamp for when session ended. If None, uses current time.
+        Used when grace period expires to record actual disconnect time.
 
     """
     if session_state.session_id is None:
         logger.warning("No active session to end")
         return
 
+    end_time = ended_at or datetime.now(UTC)
+
     with get_session() as db_session:
         db_session_obj = db_session.get(DBSession, session_state.session_id)
         if db_session_obj:
-            now = datetime.now(UTC)
-            db_session_obj.ended_at = now
+            db_session_obj.ended_at = end_time
 
             # Complete any incomplete SessionItems
             incomplete_items = (
@@ -191,7 +258,7 @@ async def _end_session(session_state: SessionState, clients: set[WebSocket]) -> 
                 .all()
             )
             for session_item in incomplete_items:
-                session_item.completed_at = now
+                session_item.completed_at = end_time
 
             db_session.commit()
 

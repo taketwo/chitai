@@ -14,9 +14,21 @@ const ws = new WebSocket(
   `${protocol}//${window.location.host}/ws?role=controller`,
 );
 
+let isPageUnloading = false;
+window.addEventListener("beforeunload", () => {
+  isPageUnloading = true;
+});
+
+// Show disconnected indicator only if connection takes too long or fails
+let connectionTimeout = setTimeout(() => {
+  if (statusEl.className !== "status connected") {
+    statusEl.className = "status disconnected";
+  }
+}, 1000); // 1 second grace period
+
 ws.onopen = () => {
   console.log("Connected");
-  statusEl.textContent = "Connected";
+  clearTimeout(connectionTimeout);
   statusEl.className = "status connected";
   startSessionBtn.disabled = false;
 };
@@ -98,8 +110,9 @@ function updateCurrentWord(word) {
 
 ws.onclose = () => {
   console.log("Disconnected");
-  statusEl.textContent = "Disconnected";
-  statusEl.className = "status disconnected";
+  if (!isPageUnloading) {
+    statusEl.className = "status disconnected";
+  }
   startSessionBtn.disabled = true;
   endSessionBtn.disabled = true;
   submitBtn.disabled = true;

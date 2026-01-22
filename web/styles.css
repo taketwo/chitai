@@ -12,19 +12,23 @@ body {
 
 /* Connection status indicator */
 .status {
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-size: 14px;
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  padding: 0;
+  background: none;
+  border-radius: 0;
 }
 
 .status.connected {
-  background: #d4edda;
-  color: #155724;
+  display: none;
 }
 
 .status.disconnected {
-  background: #f8d7da;
-  color: #721c24;
+  border-top: 15px solid #dc3545;
+  border-left: 15px solid transparent;
 }
 
 /* Button styles */
@@ -68,10 +72,6 @@ body.controller {
   font-size: 24px;
   margin-bottom: 20px;
   color: #333;
-}
-
-.controller .status {
-  margin-bottom: 20px;
 }
 
 .controller .session-controls {
@@ -171,13 +171,6 @@ body.display {
   width: 100%;
   max-width: 900px;
   text-align: center;
-}
-
-.display .status {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  opacity: 0.8;
 }
 
 .display #textDisplay {

@@ -50,7 +50,7 @@ async def test_controller_sets_state():
 @pytest.mark.asyncio
 async def test_display_receives_state():
     """Test that display receives current state on connect."""
-    await app.state.session.set_text("черепаха молоко")
+    app.state.session.set_text("черепаха молоко")
 
     async with connect_display() as display_ws:
         data = await display_ws.receive_json()

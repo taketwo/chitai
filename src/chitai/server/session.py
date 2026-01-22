@@ -1,33 +1,31 @@
-"""Session state management for active sessions."""
+"""Session state management."""
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
 
 from chitai.language import sanitize, syllabify, tokenize
-
-if TYPE_CHECKING:
-    from fastapi import WebSocket
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class SessionState:
-    """In-memory state for an active session.
+    """In-memory state for a reading session.
+
+    Holds the current session data including which text is displayed and which word is
+    highlighted. Can represent both active sessions (session_id present) and inactive
+    state (session_id is None).
 
     Attributes
     ----------
     session_id : str | None
-        Database session ID (None if no active session)
+        Database session ID. None when no session is active.
     current_item_id : str | None
-        Current item being displayed (None if no item)
+        ID of the item currently being displayed. None when no item is displayed.
     words : list[str]
-        Words from the current text being displayed
+        Words from the current text. Empty when no text is set.
     current_word_index : int
-        Index of the currently highlighted word (0-based)
-    clients : set[WebSocket]
-        Connected clients (controllers and displays)
+        Index of the currently highlighted word (0-based).
 
     """
 
@@ -35,39 +33,30 @@ class SessionState:
     current_item_id: str | None = None
     words: list[str] = field(default_factory=list)
     current_word_index: int = 0
-    clients: set[WebSocket] = field(default_factory=set)
 
-    async def add_client(self, websocket: WebSocket, role: str) -> None:
-        """Add a client to the session.
+    @property
+    def syllables(self) -> list[list[str]]:
+        """Syllabified version of current words.
 
-        Parameters
-        ----------
-        websocket : WebSocket
-            The client's WebSocket connection
-        role : str
-            Client role (for logging): 'controller' or 'display'
+        Returns
+        -------
+        list[list[str]]
+            List of syllable lists, one per word
 
         """
-        self.clients.add(websocket)
-        logger.info(
-            "%s connected. Total clients: %d", role.capitalize(), len(self.clients)
-        )
-        await self._send_state(websocket)
+        return [syllabify(word) for word in self.words]
 
-    def remove_client(self, websocket: WebSocket) -> None:
-        """Remove a client from the session.
+    def to_payload(self) -> dict:
+        """Convert session state to dictionary suitable for sending to clients."""
+        return {
+            "session_id": self.session_id,
+            "words": self.words,
+            "syllables": self.syllables,
+            "current_word_index": self.current_word_index,
+        }
 
-        Parameters
-        ----------
-        websocket : WebSocket
-            The client's WebSocket connection
-
-        """
-        self.clients.discard(websocket)
-        logger.info("Client disconnected. Total clients: %d", len(self.clients))
-
-    async def set_text(self, text: str) -> None:
-        """Set the current text and broadcast to all displays.
+    def set_text(self, text: str) -> None:
+        """Set the current text for display.
 
         Sanitizes and tokenizes text into words, resets the word index to 0.
 
@@ -80,9 +69,8 @@ class SessionState:
         self.words = tokenize(sanitize(text))
         self.current_word_index = 0
         logger.info("Text updated: %d words", len(self.words))
-        await self.broadcast_state()
 
-    async def advance_word(self, delta: int = 1) -> None:
+    def advance_word(self, delta: int) -> bool:
         """Move to a different word by a given offset (with clamping).
 
         Parameters
@@ -90,56 +78,32 @@ class SessionState:
         delta : int
             Number of words to advance (positive) or go back (negative)
 
+        Returns
+        -------
+        bool
+            True if word index changed, False otherwise
+
         """
         if not self.words:
             logger.warning("Cannot advance word: no text set")
-            return
+            return False
 
         if delta == 0:
             logger.debug("Delta is 0: no change to word index")
-            return
+            return False
 
         new_index = max(0, min(self.current_word_index + delta, len(self.words) - 1))
 
         if new_index != self.current_word_index:
             self.current_word_index = new_index
             logger.info("Word index: %d/%d", new_index + 1, len(self.words))
-            await self.broadcast_state()
-        else:
-            logger.debug("Word index unchanged: already at boundary")
-
-    async def broadcast_state(self) -> None:
-        """Broadcast current state to all connected clients."""
-        for client in self.clients:
-            await self._send_state(client)
-
-    async def _send_state(self, websocket: WebSocket) -> None:
-        """Send current state to a specific client.
-
-        Parameters
-        ----------
-        websocket : WebSocket
-            The client's WebSocket connection
-
-        """
-        message: dict[str, Any] = {
-            "type": "state",
-            "payload": {
-                "session_id": self.session_id,
-                "words": self.words,
-                "syllables": [syllabify(word) for word in self.words],
-                "current_word_index": self.current_word_index,
-            },
-        }
-        try:
-            await websocket.send_json(message)
-        except RuntimeError as e:
-            logger.warning("Failed to send state: %s", e)
+            return True
+        logger.debug("Word index unchanged: already at boundary")
+        return False
 
     def reset(self) -> None:
-        """Reset session state."""
+        """Reset all session state to initial values."""
         self.session_id = None
         self.current_item_id = None
         self.words.clear()
         self.current_word_index = 0
-        self.clients.clear()

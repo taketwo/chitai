@@ -17,73 +17,65 @@ def test_initial_state(session):
     assert session.current_item_id is None
     assert session.words == []
     assert session.current_word_index == 0
-    assert len(session.clients) == 0
 
 
-@pytest.mark.asyncio
-async def test_set_text_splits_into_words(session):
+def test_set_text_splits_into_words(session):
     """Test that set_text splits input into words."""
-    await session.set_text("молоко хлеб сыр")
+    session.set_text("молоко хлеб сыр")
     assert session.words == ["молоко", "хлеб", "сыр"]
     assert session.current_word_index == 0
 
 
-@pytest.mark.asyncio
-async def test_set_text_resets_index(session):
+def test_set_text_resets_index(session):
     """Test that set_text resets word index to 0."""
-    await session.set_text("один два три")
+    session.set_text("один два три")
     session.current_word_index = 2
-    await session.set_text("новый текст")
+    session.set_text("новый текст")
     assert session.current_word_index == 0
 
 
-@pytest.mark.asyncio
-async def test_advance_word_forward(session):
+def test_advance_word_forward(session):
     """Test advancing to next word."""
-    await session.set_text("один два три")
-    await session.advance_word(1)
+    session.set_text("один два три")
+    session.advance_word(1)
     assert session.current_word_index == 1
-    await session.advance_word(1)
+    session.advance_word(1)
     assert session.current_word_index == 2
 
 
-@pytest.mark.asyncio
-async def test_advance_word_backward(session):
+def test_advance_word_backward(session):
     """Test going back to previous word."""
-    await session.set_text("один два три")
+    session.set_text("один два три")
     session.current_word_index = 2
-    await session.advance_word(-1)
+    session.advance_word(-1)
     assert session.current_word_index == 1
-    await session.advance_word(-1)
+    session.advance_word(-1)
     assert session.current_word_index == 0
 
 
-@pytest.mark.asyncio
-async def test_advance_word_clamps_at_start(session):
+def test_advance_word_clamps_at_start(session):
     """Test that going back from first word stays at first word."""
-    await session.set_text("один два три")
-    await session.advance_word(-1)
+    session.set_text("один два три")
+    session.advance_word(-1)
     assert session.current_word_index == 0
-    await session.advance_word(-5)
+    session.advance_word(-5)
     assert session.current_word_index == 0
 
 
-@pytest.mark.asyncio
-async def test_advance_word_clamps_at_end(session):
+def test_advance_word_clamps_at_end(session):
     """Test that advancing past last word stays at last word."""
-    await session.set_text("один два три")
-    await session.advance_word(10)
+    session.set_text("один два три")
+    session.advance_word(10)
     assert session.current_word_index == 2
-    await session.advance_word(1)
+    session.advance_word(1)
     assert session.current_word_index == 2
 
 
-@pytest.mark.asyncio
-async def test_advance_word_with_no_text(session):
+def test_advance_word_with_no_text(session):
     """Test that advance_word with no text set does nothing."""
-    await session.advance_word(1)
+    session.advance_word(1)
     assert session.current_word_index == 0
-    await session.advance_word(-1)
+    session.advance_word(-1)
     assert session.current_word_index == 0
 
 

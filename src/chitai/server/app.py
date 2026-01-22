@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="Chitai")
 
 app.state.session = SessionState()
+app.state.clients = set()
 
 app.mount("/web", StaticFiles(directory="web", html=True), name="web")
 
@@ -25,6 +26,44 @@ app.mount("/web", StaticFiles(directory="web", html=True), name="web")
 async def health() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+async def _send_state(session_state: SessionState, websocket: WebSocket) -> None:
+    """Send current session state to a specific client.
+
+    Parameters
+    ----------
+    session_state : SessionState
+        The session state to send
+    websocket : WebSocket
+        The client's WebSocket connection
+
+    """
+    message = {
+        "type": "state",
+        "payload": session_state.to_payload(),
+    }
+    try:
+        await websocket.send_json(message)
+    except RuntimeError as e:
+        logger.warning("Failed to send state: %s", e)
+
+
+async def _broadcast_state(
+    session_state: SessionState, clients: set[WebSocket]
+) -> None:
+    """Broadcast current session state to all connected clients.
+
+    Parameters
+    ----------
+    session_state : SessionState
+        The session state to broadcast
+    clients : set[WebSocket]
+        Connected clients to broadcast to
+
+    """
+    for client in clients:
+        await _send_state(session_state, client)
 
 
 @app.websocket("/ws")
@@ -43,14 +82,17 @@ async def websocket_endpoint(
 
     """
     await websocket.accept()
-    session = websocket.app.state.session
+    session_state = websocket.app.state.session
+    clients = websocket.app.state.clients
 
     if role not in ("controller", "display"):
         logger.warning("Unknown role: %s", role)
         await websocket.close()
         return
 
-    await session.add_client(websocket, role)
+    clients.add(websocket)
+    logger.info("%s connected; total clients: %d", role.capitalize(), len(clients))
+    await _send_state(session_state, websocket)
 
     try:
         while True:
@@ -63,7 +105,8 @@ async def websocket_endpoint(
     except (RuntimeError, ValueError) as e:
         logger.info("%s disconnected: %s", role.capitalize(), e)
     finally:
-        session.remove_client(websocket)
+        clients.discard(websocket)
+        logger.info("Client disconnected; total clients: %d", len(clients))
 
 
 async def _handle_message(websocket: WebSocket, data: dict) -> None:
@@ -78,32 +121,30 @@ async def _handle_message(websocket: WebSocket, data: dict) -> None:
 
     """
     session_state = websocket.app.state.session
+    clients = websocket.app.state.clients
     message_type = data.get("type")
 
     if message_type == "start_session":
-        await _handle_start_session(session_state)
+        await _start_session(session_state, clients)
     elif message_type == "end_session":
-        await _handle_end_session(session_state)
+        await _end_session(session_state, clients)
     elif message_type == "add_item":
-        text = data.get("payload", {}).get("text")
-        if text:
-            await _handle_add_item(session_state, text)
-        else:
-            logger.warning("add_item message missing text")
+        await _add_item(session_state, clients, data.get("payload", {}))
     elif message_type == "advance_word":
-        delta = data.get("payload", {}).get("delta", 1)
-        await session_state.advance_word(delta)
+        await _advance_word(session_state, clients, data.get("payload", {}))
     else:
         logger.warning("Unknown message type: %s", message_type)
 
 
-async def _handle_start_session(session_state: SessionState) -> None:
-    """Handle start_session message.
+async def _start_session(session_state: SessionState, clients: set[WebSocket]) -> None:
+    """Start a new reading session.
 
     Parameters
     ----------
     session_state : SessionState
         The session state
+    clients : set[WebSocket]
+        Connected clients to broadcast to
 
     """
     if session_state.session_id is not None:
@@ -119,16 +160,18 @@ async def _handle_start_session(session_state: SessionState) -> None:
     session_state.session_id = session_id
     logger.info("Session started: %s", session_id)
 
-    await session_state.broadcast_state()
+    await _broadcast_state(session_state, clients)
 
 
-async def _handle_end_session(session_state: SessionState) -> None:
-    """Handle end_session message.
+async def _end_session(session_state: SessionState, clients: set[WebSocket]) -> None:
+    """End the active reading session.
 
     Parameters
     ----------
     session_state : SessionState
         The session state
+    clients : set[WebSocket]
+        Connected clients to broadcast to
 
     """
     if session_state.session_id is None:
@@ -154,17 +197,15 @@ async def _handle_end_session(session_state: SessionState) -> None:
 
     logger.info("Session ended: %s", session_state.session_id)
 
-    # Clear session_id before broadcasting so clients see None
-    session_state.session_id = None
-    session_state.current_item_id = None
-    session_state.words.clear()
-    session_state.current_word_index = 0
-
-    await session_state.broadcast_state()
+    # Clear session state and broadcast to clients
+    session_state.reset()
+    await _broadcast_state(session_state, clients)
 
 
-async def _handle_add_item(session_state: SessionState, text: str) -> None:
-    """Handle add_item message.
+async def _add_item(
+    session_state: SessionState, clients: set[WebSocket], payload: dict
+) -> None:
+    """Add a text item to the session.
 
     Creates or retrieves an Item, completes the previous SessionItem if any, and
     creates a new SessionItem for the current item.
@@ -173,10 +214,17 @@ async def _handle_add_item(session_state: SessionState, text: str) -> None:
     ----------
     session_state : SessionState
         The session state
-    text : str
-        The text to add
+    clients : set[WebSocket]
+        Connected clients to broadcast to
+    payload : dict
+        Message payload containing 'text' field
 
     """
+    text = payload.get("text")
+    if not text:
+        logger.warning("add_item message missing text")
+        return
+
     if session_state.session_id is None:
         logger.warning("Cannot add item: no active session")
         return
@@ -219,4 +267,24 @@ async def _handle_add_item(session_state: SessionState, text: str) -> None:
 
         session_state.current_item_id = item.id
 
-    await session_state.set_text(text)
+    session_state.set_text(text)
+    await _broadcast_state(session_state, clients)
+
+
+async def _advance_word(
+    session_state: SessionState, clients: set[WebSocket], payload: dict
+) -> None:
+    """Advance to a different word in the current text.
+
+    Parameters
+    ----------
+    session_state : SessionState
+        The session state
+    clients : set[WebSocket]
+        Connected clients to broadcast to
+    payload : dict
+        Message payload containing optional 'delta' field
+
+    """
+    if session_state.advance_word(payload.get("delta", 1)):
+        await _broadcast_state(session_state, clients)

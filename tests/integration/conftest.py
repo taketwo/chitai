@@ -29,6 +29,9 @@ def setup_test_database():
     global _test_session_factory  # noqa: PLW0603
 
     app.state.session.reset()
+    # Set short grace period for tests by default
+    # Tests can override this before starting sessions
+    app.state.grace_period_seconds = 0.1
 
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
@@ -46,7 +49,13 @@ def setup_test_database():
     with patch("chitai.server.app.get_session", test_get_session):
         yield
 
+    # Cancel any pending grace timer task before cleanup
+    if app.state.grace_timer_task and not app.state.grace_timer_task.done():
+        app.state.grace_timer_task.cancel()
+
     app.state.session.reset()
+    app.state.disconnect_time = None
+    app.state.grace_timer_task = None
     _test_session_factory = None
     engine.dispose()
 

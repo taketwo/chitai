@@ -81,6 +81,15 @@ chore: add justfile recipe for database migrations
 
 Use `uv add <package>` for runtime dependencies, `uv add --dev <package>` for dev dependencies.
 
+## SQLAlchemy
+
+Use **SQLAlchemy 2.0 query style exclusively**:
+
+- `session.scalars(select(Model).where(...))` for queries, **NOT** `session.query()`
+- `session.get(Model, id)` for primary key lookups
+- `.where()` instead of `.filter_by()`
+- `.is_(None)` for NULL checks
+
 ## Code Quality & Linting
 
 ### Ruff Configuration

@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from chitai.db.base import Base
@@ -48,6 +48,7 @@ class Item(Base):
     """
 
     __tablename__ = "items"
+    __table_args__ = (Index("ix_items_text_language", "text", "language"),)
 
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid4())

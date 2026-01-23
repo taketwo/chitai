@@ -4,6 +4,7 @@ import logging
 from dataclasses import dataclass, field
 
 from chitai.language import sanitize, syllabify, tokenize
+from chitai.server.protocol import StatePayload
 
 logger = logging.getLogger(__name__)
 
@@ -46,14 +47,14 @@ class SessionState:
         """
         return [syllabify(word) for word in self.words]
 
-    def to_payload(self) -> dict:
-        """Convert session state to dictionary suitable for sending to clients."""
-        return {
-            "session_id": self.session_id,
-            "words": self.words,
-            "syllables": self.syllables,
-            "current_word_index": self.current_word_index,
-        }
+    def to_payload(self) -> StatePayload:
+        """Convert session state to payload suitable for sending to clients."""
+        return StatePayload(
+            session_id=self.session_id,
+            words=self.words,
+            syllables=self.syllables,
+            current_word_index=self.current_word_index,
+        )
 
     def set_text(self, text: str) -> None:
         """Set the current text for display.

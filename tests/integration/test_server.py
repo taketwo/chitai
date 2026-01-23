@@ -44,14 +44,14 @@ async def test_controller_sets_state():
         data = await controller_ws.receive_json()
         assert data["type"] == "state"
         assert data["payload"]["words"] == ["молоко", "хлеб"]
-        assert app.state.session.words == ["молоко", "хлеб"]
-        assert app.state.session.current_word_index == 0
+        assert app.state.context.session.words == ["молоко", "хлеб"]
+        assert app.state.context.session.current_word_index == 0
 
 
 @pytest.mark.asyncio
 async def test_display_receives_state():
     """Test that display receives current state on connect."""
-    app.state.session.set_text("черепаха молоко")
+    app.state.context.session.set_text("черепаха молоко")
 
     async with connect_display() as display_ws:
         data = await display_ws.receive_json()
@@ -131,7 +131,7 @@ async def test_start_session(db_session):
         assert data["payload"]["session_id"] is not None
         session_id = data["payload"]["session_id"]
 
-        assert app.state.session.session_id == session_id
+        assert app.state.context.session.session_id == session_id
 
         db_session_obj = db_session.get(DBSession, session_id)
         assert db_session_obj is not None
@@ -153,7 +153,7 @@ async def test_end_session(db_session):
         data = await controller_ws.receive_json()
         assert data["type"] == "state"
         assert data["payload"]["session_id"] is None
-        assert app.state.session.session_id is None
+        assert app.state.context.session.session_id is None
 
         db_session_obj = db_session.get(DBSession, session_id)
         assert db_session_obj is not None
@@ -196,7 +196,7 @@ async def test_ignore_duplicate_start_session():
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(controller_ws.receive_json(), timeout=0.1)
 
-        assert app.state.session.session_id == session_id1
+        assert app.state.context.session.session_id == session_id1
 
 
 @pytest.mark.asyncio
@@ -243,7 +243,7 @@ async def test_add_item_creates_item_and_session_item(db_session):
         assert session_item.completed_at is None
 
         # Verify current_item_id is set
-        assert app.state.session.current_item_id == item.id
+        assert app.state.context.session.current_item_id == item.id
 
 
 @pytest.mark.asyncio
@@ -365,7 +365,7 @@ async def test_add_item_without_session_is_ignored(db_session):
 async def test_grace_period_timer_starts_on_last_disconnect(db_session):
     """Test that grace period timer starts when last client disconnects."""
     # Set short grace period for testing
-    app.state.grace_period_seconds = 0.1
+    app.state.context.grace_period_seconds = 0.1
 
     async with started_session() as (controller_ws, _, session_id):
         # Add an item so session has content
@@ -375,17 +375,17 @@ async def test_grace_period_timer_starts_on_last_disconnect(db_session):
         await controller_ws.receive_json()  # state broadcast
 
     # Both clients disconnected, grace period should start
-    assert app.state.disconnect_time is not None
-    assert app.state.grace_timer_task is not None
-    assert not app.state.grace_timer_task.done()
+    assert app.state.context.disconnect_time is not None
+    assert app.state.context.grace_timer_task is not None
+    assert not app.state.context.grace_timer_task.done()
 
     # Wait for grace period to expire
     await asyncio.sleep(0.15)
 
     # Session should be auto-ended
-    assert app.state.session.session_id is None
-    assert app.state.grace_timer_task is None
-    assert app.state.disconnect_time is None
+    assert app.state.context.session.session_id is None
+    assert app.state.context.grace_timer_task is None
+    assert app.state.context.disconnect_time is None
 
     # Verify session was ended in database
     db_session.expire_all()
@@ -397,7 +397,7 @@ async def test_grace_period_timer_starts_on_last_disconnect(db_session):
 async def test_grace_period_cancelled_on_reconnect(db_session):
     """Test that grace period timer is cancelled when client reconnects."""
     # Set short grace period for testing
-    app.state.grace_period_seconds = 0.2
+    app.state.context.grace_period_seconds = 0.2
 
     # Start session with one client
     async with connect_controller() as controller_ws:
@@ -407,9 +407,9 @@ async def test_grace_period_cancelled_on_reconnect(db_session):
         session_id = data["payload"]["session_id"]
 
     # Client disconnected, grace period should start
-    assert app.state.disconnect_time is not None
-    assert app.state.grace_timer_task is not None
-    initial_task = app.state.grace_timer_task
+    assert app.state.context.disconnect_time is not None
+    assert app.state.context.grace_timer_task is not None
+    initial_task = app.state.context.grace_timer_task
 
     # Wait a bit (but less than grace period)
     await asyncio.sleep(0.05)
@@ -420,8 +420,8 @@ async def test_grace_period_cancelled_on_reconnect(db_session):
         assert data["payload"]["session_id"] == session_id
 
         # Grace period should be cancelled
-        assert app.state.disconnect_time is None
-        assert app.state.grace_timer_task is None
+        assert app.state.context.disconnect_time is None
+        assert app.state.context.grace_timer_task is None
 
         # Original task should be cancelled
         assert initial_task.cancelled()
@@ -439,20 +439,20 @@ async def test_grace_period_cancelled_on_reconnect(db_session):
 async def test_grace_period_uses_disconnect_time_for_ended_at(db_session):
     """Test that session ended_at uses disconnect_time when grace period expires."""
     # Set short grace period for testing
-    app.state.grace_period_seconds = 0.1
+    app.state.context.grace_period_seconds = 0.1
 
     async with started_session() as (_, __, session_id):
         pass  # Just start and immediately disconnect
 
     # Capture disconnect time
-    disconnect_time = app.state.disconnect_time
+    disconnect_time = app.state.context.disconnect_time
     assert disconnect_time is not None
 
     # Wait for grace period to expire
     await asyncio.sleep(0.15)
 
     # Session should be auto-ended
-    assert app.state.session.session_id is None
+    assert app.state.context.session.session_id is None
 
     # Verify ended_at matches disconnect_time (not current time)
     db_session.expire_all()
@@ -469,7 +469,7 @@ async def test_grace_period_uses_disconnect_time_for_ended_at(db_session):
 async def test_grace_period_no_timer_without_active_session():
     """Test that grace period timer doesn't start if no session is active."""
     # Set short grace period for testing
-    app.state.grace_period_seconds = 0.1
+    app.state.context.grace_period_seconds = 0.1
 
     # Connect and disconnect without starting a session
     async with connect_controller() as controller_ws:
@@ -477,11 +477,11 @@ async def test_grace_period_no_timer_without_active_session():
         # Don't start session, just disconnect
 
     # No grace period timer should start
-    assert app.state.disconnect_time is None
-    assert app.state.grace_timer_task is None
+    assert app.state.context.disconnect_time is None
+    assert app.state.context.grace_timer_task is None
 
     # Wait to ensure nothing happens
     await asyncio.sleep(0.15)
 
     # State should remain clean
-    assert app.state.session.session_id is None
+    assert app.state.context.session.session_id is None

@@ -23,20 +23,20 @@ def reset_app_state():
     cancels any pending grace period timers after test completes.
     """
     # Setup: reset state to defaults
-    app.state.session.reset()
-    app.state.grace_period_seconds = 0.1  # Short grace period for fast tests
-    app.state.disconnect_time = None
-    app.state.grace_timer_task = None
+    app.state.context.session.reset()
+    app.state.context.grace_period_seconds = 0.1  # Short grace period for fast tests
+    app.state.context.disconnect_time = None
+    app.state.context.grace_timer_task = None
 
     yield
 
     # Teardown: cancel pending tasks and reset state
-    if app.state.grace_timer_task and not app.state.grace_timer_task.done():
-        app.state.grace_timer_task.cancel()
+    if app.state.context.has_active_grace_timer:
+        app.state.context.grace_timer_task.cancel()
 
-    app.state.session.reset()
-    app.state.disconnect_time = None
-    app.state.grace_timer_task = None
+    app.state.context.session.reset()
+    app.state.context.disconnect_time = None
+    app.state.context.grace_timer_task = None
 
 
 @pytest.fixture

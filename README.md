@@ -96,7 +96,7 @@ just db-upgrade
 just db-reset
 
 # Create a new migration after model changes
-just db-create-migration "description"
+just db-create-migration "Description of change"
 ```
 
 Database file is stored at `data/chitai.db`. Migrations run automatically on server startup in production.
@@ -122,7 +122,7 @@ just docker-restart
 The dev container:
 - Mounts your local codebase at `/app` for live editing
 - Runs with `CHITAI_RELOAD=true` for automatic code reloading
-- Exposes the app on `http://localhost:8000`
+- Exposes the app on `https://localhost:8000`
 
 **When to rebuild:**
 - Dependency changes (`pyproject.toml`, `uv.lock`)

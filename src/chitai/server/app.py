@@ -65,7 +65,7 @@ async def _send_state(session_state: SessionState, websocket: WebSocket) -> None
     }
     try:
         await websocket.send_json(message)
-    except RuntimeError as e:
+    except (WebSocketDisconnect, RuntimeError) as e:
         logger.warning("Failed to send state: %s", e)
 
 

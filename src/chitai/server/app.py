@@ -7,11 +7,13 @@ from datetime import UTC, datetime
 
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from chitai.db.engine import get_session
 from chitai.db.models import Item, Language, SessionItem
 from chitai.db.models import Session as DBSession
+from chitai.server.protocol import StateMessage, incoming_message_adapter
 from chitai.server.session import SessionState
 from chitai.settings import settings
 
@@ -59,12 +61,9 @@ async def _send_state(session_state: SessionState, websocket: WebSocket) -> None
         The client's WebSocket connection
 
     """
-    message = {
-        "type": "state",
-        "payload": session_state.to_payload(),
-    }
+    message = StateMessage(type="state", payload=session_state.to_payload())
     try:
-        await websocket.send_json(message)
+        await websocket.send_json(message.model_dump(mode="json"))
     except (WebSocketDisconnect, RuntimeError) as e:
         logger.warning("Failed to send state: %s", e)
 
@@ -191,18 +190,21 @@ async def _handle_message(websocket: WebSocket, data: dict) -> None:
     """
     session_state = websocket.app.state.context.session
     clients = websocket.app.state.context.clients
-    message_type = data.get("type")
 
-    if message_type == "start_session":
+    try:
+        message = incoming_message_adapter.validate_python(data)
+    except ValidationError as e:
+        logger.warning("Invalid message format: %s", e)
+        return
+
+    if message.type == "start_session":
         await _start_session(session_state, clients)
-    elif message_type == "end_session":
+    elif message.type == "end_session":
         await _end_session(session_state, clients)
-    elif message_type == "add_item":
-        await _add_item(session_state, clients, data.get("payload", {}))
-    elif message_type == "advance_word":
-        await _advance_word(session_state, clients, data.get("payload", {}))
-    else:
-        logger.warning("Unknown message type: %s", message_type)
+    elif message.type == "add_item":
+        await _add_item(session_state, clients, message.payload.text)
+    elif message.type == "advance_word":
+        await _advance_word(session_state, clients, message.payload.delta)
 
 
 async def _start_session(session_state: SessionState, clients: set[WebSocket]) -> None:
@@ -281,7 +283,7 @@ async def _end_session(
 
 
 async def _add_item(
-    session_state: SessionState, clients: set[WebSocket], payload: dict
+    session_state: SessionState, clients: set[WebSocket], text: str
 ) -> None:
     """Add a text item to the session.
 
@@ -294,15 +296,10 @@ async def _add_item(
         The session state
     clients : set[WebSocket]
         Connected clients to broadcast to
-    payload : dict
-        Message payload containing 'text' field
+    text : str
+        The text to add
 
     """
-    text = payload.get("text")
-    if not text:
-        logger.warning("add_item message missing text")
-        return
-
     if session_state.session_id is None:
         logger.warning("Cannot add item: no active session")
         return
@@ -350,7 +347,7 @@ async def _add_item(
 
 
 async def _advance_word(
-    session_state: SessionState, clients: set[WebSocket], payload: dict
+    session_state: SessionState, clients: set[WebSocket], delta: int
 ) -> None:
     """Advance to a different word in the current text.
 
@@ -360,9 +357,9 @@ async def _advance_word(
         The session state
     clients : set[WebSocket]
         Connected clients to broadcast to
-    payload : dict
-        Message payload containing optional 'delta' field
+    delta : int
+        Number of words to advance (positive) or go back (negative)
 
     """
-    if session_state.advance_word(payload.get("delta", 1)):
+    if session_state.advance_word(delta):
         await _broadcast_state(session_state, clients)

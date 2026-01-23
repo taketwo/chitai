@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select
 
 from chitai.db.engine import get_session
 from chitai.db.models import Item, Language, SessionItem
@@ -261,11 +262,12 @@ async def _end_session(
             db_session_obj.ended_at = end_time
 
             # Complete any incomplete SessionItems
-            incomplete_items = (
-                db_session.query(SessionItem)
-                .filter_by(session_id=session_state.session_id, completed_at=None)
-                .all()
-            )
+            incomplete_items = db_session.scalars(
+                select(SessionItem).where(
+                    SessionItem.session_id == session_state.session_id,
+                    SessionItem.completed_at.is_(None),
+                )
+            ).all()
             for session_item in incomplete_items:
                 session_item.completed_at = end_time
 
@@ -314,7 +316,9 @@ async def _add_item(
         language = db_session_obj.language
 
         # Check if item already exists
-        item = db_session.query(Item).filter_by(text=text, language=language).first()
+        item = db_session.scalars(
+            select(Item).where(Item.text == text, Item.language == language)
+        ).first()
         if not item:
             item = Item(text=text, language=language)
             db_session.add(item)
@@ -322,15 +326,13 @@ async def _add_item(
 
         # Complete previous SessionItem if exists
         if session_state.current_item_id:
-            prev_session_item = (
-                db_session.query(SessionItem)
-                .filter_by(
-                    session_id=session_state.session_id,
-                    item_id=session_state.current_item_id,
-                    completed_at=None,
+            prev_session_item = db_session.scalars(
+                select(SessionItem).where(
+                    SessionItem.session_id == session_state.session_id,
+                    SessionItem.item_id == session_state.current_item_id,
+                    SessionItem.completed_at.is_(None),
                 )
-                .first()
-            )
+            ).first()
             if prev_session_item:
                 prev_session_item.completed_at = datetime.now(UTC)
 

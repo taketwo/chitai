@@ -90,6 +90,16 @@ Use **SQLAlchemy 2.0 query style exclusively**:
 - `.where()` instead of `.filter_by()`
 - `.is_(None)` for NULL checks
 
+## WebSockets
+
+Starlette WebSocket operations raise:
+
+- `WebSocketDisconnect` - connection closed or network error
+- `RuntimeError` - WebSocket not connected/accepted yet
+- `ValueError` - invalid JSON in receive_json()
+
+Catch these exceptions when calling send/receive methods.
+
 ## Code Quality & Linting
 
 ### Ruff Configuration

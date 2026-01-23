@@ -307,7 +307,12 @@ async def _add_item(
     with get_session() as db_session:
         db_session_obj = db_session.get(DBSession, session_state.session_id)
         if not db_session_obj:
-            logger.error("Session not found: %s", session_state.session_id)
+            logger.error(
+                "Session not found in database: %s, resetting state",
+                session_state.session_id,
+            )
+            session_state.reset()
+            await _broadcast_state(session_state, clients)
             return
 
         language = db_session_obj.language

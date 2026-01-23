@@ -362,6 +362,35 @@ async def test_add_item_without_session_is_ignored(db_session):
 
 
 @pytest.mark.asyncio
+async def test_add_item_with_missing_database_session_resets_state(db_session):
+    """Test that missing database session triggers state reset and broadcast."""
+    async with started_session() as (controller_ws, display_ws, session_id):
+        # Manually delete the database session to simulate corruption
+        db_session_obj = db_session.get(DBSession, session_id)
+        assert db_session_obj is not None
+        db_session.delete(db_session_obj)
+        db_session.commit()
+
+        # Try to add an item - should trigger the missing session error path
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "молоко"}}
+        )
+
+        # Should receive state broadcast with reset state
+        controller_data = await controller_ws.receive_json()
+        assert controller_data["type"] == "state"
+        assert controller_data["payload"]["session_id"] is None
+        assert controller_data["payload"]["words"] == []
+
+        display_data = await display_ws.receive_json()
+        assert display_data["type"] == "state"
+        assert display_data["payload"]["session_id"] is None
+
+        # Verify in-memory state was reset
+        assert app.state.context.session.session_id is None
+
+
+@pytest.mark.asyncio
 async def test_grace_period_timer_starts_on_last_disconnect(db_session):
     """Test that grace period timer starts when last client disconnects."""
     # Set short grace period for testing

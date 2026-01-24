@@ -88,7 +88,7 @@ def test_session_item_creation(session: Session) -> None:
     session.add(db_session)
     session.commit()
 
-    # Create session item
+    # Create session item (not displayed yet)
     session_item = SessionItem(session_id=db_session.id, item_id=item.id)
     session.add(session_item)
     session.commit()
@@ -98,7 +98,7 @@ def test_session_item_creation(session: Session) -> None:
     assert retrieved_session_item is not None
     assert retrieved_session_item.session_id == db_session.id
     assert retrieved_session_item.item_id == item.id
-    assert isinstance(retrieved_session_item.displayed_at, datetime)
+    assert retrieved_session_item.displayed_at is None
     assert retrieved_session_item.completed_at is None
     assert len(retrieved_session_item.id) == 36
 
@@ -137,8 +137,11 @@ def test_session_item_completion(session: Session) -> None:
     session.add_all([item, db_session])
     session.commit()
 
-    # Create session item with persisted IDs
-    session_item = SessionItem(session_id=db_session.id, item_id=item.id)
+    # Create session item and mark as displayed
+    now = datetime.now(UTC)
+    session_item = SessionItem(
+        session_id=db_session.id, item_id=item.id, displayed_at=now
+    )
     session.add(session_item)
     session.commit()
 
@@ -148,6 +151,7 @@ def test_session_item_completion(session: Session) -> None:
 
     retrieved = session.query(SessionItem).first()
     assert retrieved is not None
+    assert retrieved.displayed_at is not None
     assert retrieved.completed_at is not None
     assert retrieved.completed_at >= retrieved.displayed_at
 

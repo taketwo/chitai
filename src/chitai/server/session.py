@@ -4,7 +4,6 @@ import logging
 from dataclasses import dataclass, field
 
 from chitai.language import sanitize, syllabify, tokenize
-from chitai.server.protocol import StatePayload
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +20,10 @@ class SessionState:
     ----------
     session_id : str | None
         Database session ID. None when no session is active.
-    current_item_id : str | None
-        ID of the item currently being displayed. None when no item is displayed.
+    current_session_item_id : str | None
+        ID of the SessionItem currently being displayed. None when no item is displayed.
+    queue : list[str]
+        SessionItem IDs waiting to be displayed. Empty when no items are queued.
     words : list[str]
         Words from the current text. Empty when no text is set.
     current_word_index : int
@@ -31,7 +32,8 @@ class SessionState:
     """
 
     session_id: str | None = None
-    current_item_id: str | None = None
+    current_session_item_id: str | None = None
+    queue: list[str] = field(default_factory=list)
     words: list[str] = field(default_factory=list)
     current_word_index: int = 0
 
@@ -46,15 +48,6 @@ class SessionState:
 
         """
         return [syllabify(word) for word in self.words]
-
-    def to_payload(self) -> StatePayload:
-        """Convert session state to payload suitable for sending to clients."""
-        return StatePayload(
-            session_id=self.session_id,
-            words=self.words,
-            syllables=self.syllables,
-            current_word_index=self.current_word_index,
-        )
 
     def set_text(self, text: str) -> None:
         """Set the current text for display.
@@ -105,6 +98,7 @@ class SessionState:
     def reset(self) -> None:
         """Reset all session state to initial values."""
         self.session_id = None
-        self.current_item_id = None
+        self.current_session_item_id = None
+        self.queue.clear()
         self.words.clear()
         self.current_word_index = 0

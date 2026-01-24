@@ -242,8 +242,8 @@ async def test_add_item_creates_item_and_session_item(db_session):
         assert session_item.displayed_at is not None
         assert session_item.completed_at is None
 
-        # Verify current_item_id is set
-        assert app.state.context.session.current_item_id == item.id
+        # Verify current_session_item_id is set
+        assert app.state.context.session.current_session_item_id == session_item.id
 
 
 @pytest.mark.asyncio
@@ -272,14 +272,15 @@ async def test_add_item_reuses_existing_item(db_session):
 
 
 @pytest.mark.asyncio
-async def test_add_item_completes_previous_session_item(db_session):
-    """Test that adding new item completes the previous SessionItem."""
+async def test_add_item_queues_when_item_displayed(db_session):
+    """Test that adding item when one is displayed adds to queue."""
     async with started_session() as (controller_ws, _, session_id):
         # Add first item
         await controller_ws.send_json(
             {"type": "add_item", "payload": {"text": "первый"}}
         )
-        await controller_ws.receive_json()
+        state = await controller_ws.receive_json()
+        assert state["payload"]["queue"] == []
 
         # Get first item's SessionItem
         item1 = db_session.query(Item).filter_by(text="первый").first()
@@ -290,6 +291,7 @@ async def test_add_item_completes_previous_session_item(db_session):
             .first()
         )
         assert session_item1 is not None
+        assert session_item1.displayed_at is not None
         assert session_item1.completed_at is None
         session_item1_id = session_item1.id
 
@@ -297,15 +299,18 @@ async def test_add_item_completes_previous_session_item(db_session):
         await controller_ws.send_json(
             {"type": "add_item", "payload": {"text": "второй"}}
         )
-        await controller_ws.receive_json()
+        state = await controller_ws.receive_json()
 
-        # Verify first SessionItem is now completed
+        # Verify first SessionItem is still active (not completed)
         db_session.expire_all()  # Refresh data from database
         session_item1 = db_session.get(SessionItem, session_item1_id)
         assert session_item1 is not None
-        assert session_item1.completed_at is not None
+        assert session_item1.completed_at is None
 
-        # Verify second SessionItem is not completed
+        # Verify second item was added to queue
+        assert len(state["payload"]["queue"]) == 1
+        assert state["payload"]["queue"][0]["text"] == "второй"
+
         item2 = db_session.query(Item).filter_by(text="второй").first()
         assert item2 is not None
         session_item2 = (
@@ -314,6 +319,7 @@ async def test_add_item_completes_previous_session_item(db_session):
             .first()
         )
         assert session_item2 is not None
+        assert session_item2.displayed_at is None
         assert session_item2.completed_at is None
 
 

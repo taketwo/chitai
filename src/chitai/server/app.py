@@ -9,17 +9,74 @@ from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from chitai.db.engine import get_session_ctx
 from chitai.db.models import Item, Language, SessionItem
 from chitai.db.models import Session as DBSession
-from chitai.server.protocol import StateMessage, incoming_message_adapter
+from chitai.server.protocol import (
+    SessionItemInfo,
+    StateMessage,
+    StatePayload,
+    incoming_message_adapter,
+)
 from chitai.server.routers import items_router, logs_router, sessions_router
 from chitai.server.session import SessionState
 from chitai.settings import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _build_state_payload(session_state: SessionState) -> StatePayload:
+    """Build protocol payload from session state.
+
+    Fetches queue item details from database and combines with in-memory state.
+
+    Parameters
+    ----------
+    session_state : SessionState
+        The session state to convert
+
+    Returns
+    -------
+    StatePayload
+        Protocol message payload ready for broadcast
+
+    """
+    queue_items: list[SessionItemInfo] = []
+
+    if session_state.queue:
+        with get_session_ctx() as db_session:
+            # Fetch all queued SessionItems with their Items in a single query
+            session_items = (
+                db_session.scalars(
+                    select(SessionItem)
+                    .options(joinedload(SessionItem.item))
+                    .where(SessionItem.id.in_(session_state.queue))
+                )
+                .unique()
+                .all()
+            )
+
+            # Create lookup dict and maintain queue order
+            session_item_map = {si.id: si for si in session_items}
+            queue_items.extend(
+                SessionItemInfo(
+                    session_item_id=session_item_id,
+                    text=session_item.item.text,
+                )
+                for session_item_id in session_state.queue
+                if (session_item := session_item_map.get(session_item_id))
+            )
+
+    return StatePayload(
+        session_id=session_state.session_id,
+        words=session_state.words,
+        syllables=session_state.syllables,
+        current_word_index=session_state.current_word_index,
+        queue=queue_items,
+    )
 
 
 @dataclass
@@ -54,18 +111,18 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-async def _send_state(session_state: SessionState, websocket: WebSocket) -> None:
-    """Send current session state to a specific client.
+async def _send_state(payload: StatePayload, websocket: WebSocket) -> None:
+    """Send state payload to a specific client.
 
     Parameters
     ----------
-    session_state : SessionState
-        The session state to send
+    payload : StatePayload
+        The state payload to send
     websocket : WebSocket
         The client's WebSocket connection
 
     """
-    message = StateMessage(type="state", payload=session_state.to_payload())
+    message = StateMessage(type="state", payload=payload)
     try:
         await websocket.send_json(message.model_dump(mode="json"))
     except (WebSocketDisconnect, RuntimeError) as e:
@@ -77,6 +134,9 @@ async def _broadcast_state(
 ) -> None:
     """Broadcast current session state to all connected clients.
 
+    Builds the state payload once and sends to all clients to avoid
+    redundant database queries.
+
     Parameters
     ----------
     session_state : SessionState
@@ -85,8 +145,9 @@ async def _broadcast_state(
         Connected clients to broadcast to
 
     """
+    payload = _build_state_payload(session_state)
     for client in clients:
-        await _send_state(session_state, client)
+        await _send_state(payload, client)
 
 
 async def _grace_period_timer(
@@ -152,7 +213,9 @@ async def websocket_endpoint(
         websocket.app.state.context.grace_timer_task = None
         websocket.app.state.context.disconnect_time = None
 
-    await _send_state(session_state, websocket)
+    # Send current state to newly connected client
+    payload = _build_state_payload(session_state)
+    await _send_state(payload, websocket)
 
     try:
         while True:
@@ -291,8 +354,8 @@ async def _add_item(
 ) -> None:
     """Add a text item to the session.
 
-    Creates or retrieves an Item, completes the previous SessionItem if any, and
-    creates a new SessionItem for the current item.
+    Creates or retrieves an Item and creates a new SessionItem. If no item is currently
+    displayed, displays the new item immediately. Otherwise, adds it to the queue.
 
     Parameters
     ----------
@@ -330,28 +393,33 @@ async def _add_item(
             db_session.add(item)
             db_session.flush()  # Get the item ID
 
-        # Complete previous SessionItem if exists
-        if session_state.current_item_id:
-            prev_session_item = db_session.scalars(
-                select(SessionItem).where(
-                    SessionItem.session_id == session_state.session_id,
-                    SessionItem.item_id == session_state.current_item_id,
-                    SessionItem.completed_at.is_(None),
-                )
-            ).first()
-            if prev_session_item:
-                prev_session_item.completed_at = datetime.now(UTC)
-
+        # Create SessionItem (not displayed yet)
         session_item = SessionItem(
             session_id=session_state.session_id,
             item_id=item.id,
+            displayed_at=None,
         )
         db_session.add(session_item)
-        db_session.commit()
+        db_session.flush()  # Get the session_item ID
 
-        session_state.current_item_id = item.id
+        # If nothing is currently displayed, display immediately
+        if session_state.current_session_item_id is None:
+            session_item.displayed_at = datetime.now(UTC)
+            db_session.commit()
 
-    session_state.set_text(text)
+            session_state.current_session_item_id = session_item.id
+            session_state.set_text(text)
+            logger.info("Item displayed immediately: %s", item.id)
+        else:
+            # Otherwise, add to queue
+            db_session.commit()
+            session_state.queue.append(session_item.id)
+            logger.info(
+                "Item added to queue (position %d): %s",
+                len(session_state.queue),
+                item.id,
+            )
+
     await _broadcast_state(session_state, clients)
 
 

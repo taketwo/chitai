@@ -7,6 +7,13 @@ from pydantic import BaseModel, Field, TypeAdapter
 # Outgoing messages (server → client)
 
 
+class SessionItemInfo(BaseModel):
+    """Information about an item in a session (queued, current, or completed)."""
+
+    session_item_id: str
+    text: str
+
+
 class StatePayload(BaseModel):
     """Payload for state message."""
 
@@ -14,6 +21,7 @@ class StatePayload(BaseModel):
     words: list[str]
     syllables: list[list[str]]
     current_word_index: int
+    queue: list[SessionItemInfo]
 
 
 class StateMessage(BaseModel):

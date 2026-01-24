@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 
 from chitai.db.base import Base
@@ -41,7 +41,7 @@ def test_item_creation(session: Session) -> None:
     session.add(item)
     session.commit()
 
-    retrieved = session.query(Item).filter_by(text="молоко").first()
+    retrieved = session.scalars(select(Item).where(Item.text == "молоко")).first()
     assert retrieved is not None
     assert retrieved.text == "молоко"
     assert retrieved.language == Language.RUSSIAN
@@ -55,7 +55,7 @@ def test_session_creation(session: Session) -> None:
     session.add(db_session)
     session.commit()
 
-    retrieved = session.query(DBSession).first()
+    retrieved = session.scalars(select(DBSession)).first()
     assert retrieved is not None
     assert retrieved.language == Language.RUSSIAN
     assert isinstance(retrieved.started_at, datetime)
@@ -73,7 +73,7 @@ def test_session_end(session: Session) -> None:
     db_session.ended_at = datetime.now(UTC)
     session.commit()
 
-    retrieved = session.query(DBSession).first()
+    retrieved = session.scalars(select(DBSession)).first()
     assert retrieved is not None
     assert retrieved.ended_at is not None
     assert retrieved.ended_at > retrieved.started_at
@@ -94,7 +94,7 @@ def test_session_item_creation(session: Session) -> None:
     session.commit()
 
     # Verify relationships
-    retrieved_session_item = session.query(SessionItem).first()
+    retrieved_session_item = session.scalars(select(SessionItem)).first()
     assert retrieved_session_item is not None
     assert retrieved_session_item.session_id == db_session.id
     assert retrieved_session_item.item_id == item.id
@@ -118,7 +118,7 @@ def test_session_item_relationships(session: Session) -> None:
     session.commit()
 
     # Test relationships
-    retrieved_session_item = session.query(SessionItem).first()
+    retrieved_session_item = session.scalars(select(SessionItem)).first()
     assert retrieved_session_item is not None
     assert retrieved_session_item.session.id == db_session.id
     assert retrieved_session_item.item.text == "молоко"
@@ -149,7 +149,7 @@ def test_session_item_completion(session: Session) -> None:
     session_item.completed_at = datetime.now(UTC)
     session.commit()
 
-    retrieved = session.query(SessionItem).first()
+    retrieved = session.scalars(select(SessionItem)).first()
     assert retrieved is not None
     assert retrieved.displayed_at is not None
     assert retrieved.completed_at is not None
@@ -173,9 +173,9 @@ def test_session_cascade_delete(session: Session) -> None:
     session.commit()
 
     # Session items should be deleted
-    assert session.query(SessionItem).count() == 0
+    assert session.scalar(select(func.count()).select_from(SessionItem)) == 0
     # But items should still exist
-    assert session.query(Item).count() == 1
+    assert session.scalar(select(func.count()).select_from(Item)) == 1
 
 
 def test_settings_creation(session: Session) -> None:
@@ -184,7 +184,7 @@ def test_settings_creation(session: Session) -> None:
     session.add(settings)
     session.commit()
 
-    retrieved = session.query(Settings).first()
+    retrieved = session.scalars(select(Settings)).first()
     assert retrieved is not None
     assert retrieved.id == 1
     assert retrieved.show_syllables is True
@@ -203,7 +203,7 @@ def test_settings_update(session: Session) -> None:
     settings.dim_future_words = True
     session.commit()
 
-    retrieved = session.query(Settings).first()
+    retrieved = session.scalars(select(Settings)).first()
     assert retrieved is not None
     assert retrieved.show_syllables is False
     assert retrieved.dim_read_words is True

@@ -4,6 +4,7 @@ import asyncio
 from datetime import UTC
 
 import pytest
+from sqlalchemy import select
 
 from chitai.db.models import Item, SessionItem
 from chitai.db.models import Session as DBSession
@@ -228,16 +229,16 @@ async def test_add_item_creates_item_and_session_item(db_session):
         await controller_ws.receive_json()  # state broadcast
 
         # Verify Item was created
-        item = db_session.query(Item).filter_by(text="молоко").first()
+        item = db_session.scalars(select(Item).where(Item.text == "молоко")).first()
         assert item is not None
         assert item.language == "ru"
 
         # Verify SessionItem was created
-        session_item = (
-            db_session.query(SessionItem)
-            .filter_by(session_id=session_id, item_id=item.id)
-            .first()
-        )
+        session_item = db_session.scalars(
+            select(SessionItem).where(
+                SessionItem.session_id == session_id, SessionItem.item_id == item.id
+            )
+        ).first()
         assert session_item is not None
         assert session_item.displayed_at is not None
         assert session_item.completed_at is None
@@ -258,16 +259,16 @@ async def test_add_item_reuses_existing_item(db_session):
         await controller_ws.receive_json()
 
         # Verify only one Item was created
-        items = db_session.query(Item).filter_by(text="хлеб").all()
+        items = db_session.scalars(select(Item).where(Item.text == "хлеб")).all()
         assert len(items) == 1
         item = items[0]
 
         # Verify two SessionItems were created for the same Item
-        session_items = (
-            db_session.query(SessionItem)
-            .filter_by(session_id=session_id, item_id=item.id)
-            .all()
-        )
+        session_items = db_session.scalars(
+            select(SessionItem).where(
+                SessionItem.session_id == session_id, SessionItem.item_id == item.id
+            )
+        ).all()
         assert len(session_items) == 2
 
 
@@ -283,13 +284,13 @@ async def test_add_item_queues_when_item_displayed(db_session):
         assert state["payload"]["queue"] == []
 
         # Get first item's SessionItem
-        item1 = db_session.query(Item).filter_by(text="первый").first()
+        item1 = db_session.scalars(select(Item).where(Item.text == "первый")).first()
         assert item1 is not None
-        session_item1 = (
-            db_session.query(SessionItem)
-            .filter_by(session_id=session_id, item_id=item1.id)
-            .first()
-        )
+        session_item1 = db_session.scalars(
+            select(SessionItem).where(
+                SessionItem.session_id == session_id, SessionItem.item_id == item1.id
+            )
+        ).first()
         assert session_item1 is not None
         assert session_item1.displayed_at is not None
         assert session_item1.completed_at is None
@@ -311,13 +312,13 @@ async def test_add_item_queues_when_item_displayed(db_session):
         assert len(state["payload"]["queue"]) == 1
         assert state["payload"]["queue"][0]["text"] == "второй"
 
-        item2 = db_session.query(Item).filter_by(text="второй").first()
+        item2 = db_session.scalars(select(Item).where(Item.text == "второй")).first()
         assert item2 is not None
-        session_item2 = (
-            db_session.query(SessionItem)
-            .filter_by(session_id=session_id, item_id=item2.id)
-            .first()
-        )
+        session_item2 = db_session.scalars(
+            select(SessionItem).where(
+                SessionItem.session_id == session_id, SessionItem.item_id == item2.id
+            )
+        ).first()
         assert session_item2 is not None
         assert session_item2.displayed_at is None
         assert session_item2.completed_at is None
@@ -342,19 +343,19 @@ async def test_next_item_advances_through_queue(db_session):
         assert len(state["payload"]["queue"]) == 2
 
         # Get SessionItem IDs for verification
-        item1 = db_session.query(Item).filter_by(text="один").first()
-        item2 = db_session.query(Item).filter_by(text="два").first()
+        item1 = db_session.scalars(select(Item).where(Item.text == "один")).first()
+        item2 = db_session.scalars(select(Item).where(Item.text == "два")).first()
 
-        session_item1 = (
-            db_session.query(SessionItem)
-            .filter_by(session_id=session_id, item_id=item1.id)
-            .first()
-        )
-        session_item2 = (
-            db_session.query(SessionItem)
-            .filter_by(session_id=session_id, item_id=item2.id)
-            .first()
-        )
+        session_item1 = db_session.scalars(
+            select(SessionItem).where(
+                SessionItem.session_id == session_id, SessionItem.item_id == item1.id
+            )
+        ).first()
+        session_item2 = db_session.scalars(
+            select(SessionItem).where(
+                SessionItem.session_id == session_id, SessionItem.item_id == item2.id
+            )
+        ).first()
 
         # Advance to next item
         await controller_ws.send_json({"type": "next_item"})
@@ -417,28 +418,28 @@ async def test_end_session_does_not_complete_items(db_session):
         await controller_ws.receive_json()
 
         # Verify SessionItems are NOT auto-completed
-        session_items = (
-            db_session.query(SessionItem).filter_by(session_id=session_id).all()
-        )
+        session_items = db_session.scalars(
+            select(SessionItem).where(SessionItem.session_id == session_id)
+        ).all()
         assert len(session_items) == 2
 
         # First item was displayed but not completed
-        item1 = db_session.query(Item).filter_by(text="один").first()
-        session_item1 = (
-            db_session.query(SessionItem)
-            .filter_by(session_id=session_id, item_id=item1.id)
-            .first()
-        )
+        item1 = db_session.scalars(select(Item).where(Item.text == "один")).first()
+        session_item1 = db_session.scalars(
+            select(SessionItem).where(
+                SessionItem.session_id == session_id, SessionItem.item_id == item1.id
+            )
+        ).first()
         assert session_item1.displayed_at is not None
         assert session_item1.completed_at is None
 
         # Second item was queued but never displayed
-        item2 = db_session.query(Item).filter_by(text="два").first()
-        session_item2 = (
-            db_session.query(SessionItem)
-            .filter_by(session_id=session_id, item_id=item2.id)
-            .first()
-        )
+        item2 = db_session.scalars(select(Item).where(Item.text == "два")).first()
+        session_item2 = db_session.scalars(
+            select(SessionItem).where(
+                SessionItem.session_id == session_id, SessionItem.item_id == item2.id
+            )
+        ).first()
         assert session_item2.displayed_at is None
         assert session_item2.completed_at is None
 
@@ -459,7 +460,7 @@ async def test_add_item_without_session_is_ignored(db_session):
             await asyncio.wait_for(controller_ws.receive_json(), timeout=0.1)
 
         # Verify no Item was created
-        items = db_session.query(Item).filter_by(text="молоко").all()
+        items = db_session.scalars(select(Item).where(Item.text == "молоко")).all()
         assert len(items) == 0
 
 
@@ -720,7 +721,7 @@ async def test_complete_session_flow_end_to_end(db_session):  # noqa: PLR0915
     assert session_obj is not None
     assert session_obj.ended_at is not None
 
-    items = db_session.query(Item).all()
+    items = db_session.scalars(select(Item)).all()
     assert len(items) == 3
 
     items_by_text = {item.text: item for item in items}
@@ -728,28 +729,30 @@ async def test_complete_session_flow_end_to_end(db_session):  # noqa: PLR0915
     assert "мама готовит обед" in items_by_text
     assert "солнце светит" in items_by_text
 
-    session_items = db_session.query(SessionItem).filter_by(session_id=session_id).all()
+    session_items = db_session.scalars(
+        select(SessionItem).where(SessionItem.session_id == session_id)
+    ).all()
     assert len(session_items) == 3
 
     item1 = items_by_text["черепаха ползёт"]
     item2 = items_by_text["мама готовит обед"]
     item3 = items_by_text["солнце светит"]
 
-    session_item1 = (
-        db_session.query(SessionItem)
-        .filter_by(session_id=session_id, item_id=item1.id)
-        .first()
-    )
-    session_item2 = (
-        db_session.query(SessionItem)
-        .filter_by(session_id=session_id, item_id=item2.id)
-        .first()
-    )
-    session_item3 = (
-        db_session.query(SessionItem)
-        .filter_by(session_id=session_id, item_id=item3.id)
-        .first()
-    )
+    session_item1 = db_session.scalars(
+        select(SessionItem).where(
+            SessionItem.session_id == session_id, SessionItem.item_id == item1.id
+        )
+    ).first()
+    session_item2 = db_session.scalars(
+        select(SessionItem).where(
+            SessionItem.session_id == session_id, SessionItem.item_id == item2.id
+        )
+    ).first()
+    session_item3 = db_session.scalars(
+        select(SessionItem).where(
+            SessionItem.session_id == session_id, SessionItem.item_id == item3.id
+        )
+    ).first()
 
     # First two items completed, third displayed but not completed
     assert session_item1.displayed_at is not None

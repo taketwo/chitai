@@ -144,6 +144,20 @@ body.controller {
   background: #c0c0c0;
 }
 
+.controller .controls .advance-btn.next-item {
+  background: #4caf50;
+  color: white;
+  font-weight: 600;
+}
+
+.controller .controls .advance-btn.next-item:hover:not(:disabled) {
+  background: #45a049;
+}
+
+.controller .controls .advance-btn.next-item:active:not(:disabled) {
+  background: #3d8b40;
+}
+
 .controller .controls .current-word {
   flex: 1;
   text-align: center;

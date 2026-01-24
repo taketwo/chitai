@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from chitai.db.base import Base
 from chitai.db.engine import configure_session_factory
@@ -50,7 +51,11 @@ def test_db():
     sessionmaker[Session]
         Session factory for creating database sessions
     """
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine)
 

@@ -73,3 +73,20 @@ async def started_session() -> AsyncGenerator[
         await display_ws.receive_json()
         session_id = controller_data["payload"]["session_id"]
         yield controller_ws, display_ws, session_id
+
+
+@asynccontextmanager
+async def http_client() -> AsyncGenerator[AsyncClient]:
+    """Provide HTTP client for REST API tests.
+
+    Yields
+    ------
+    AsyncClient
+        HTTP client configured to communicate with the FastAPI app
+
+    """
+    async with (
+        ASGIWebSocketTransport(app=app) as transport,
+        AsyncClient(transport=transport, base_url="http://test") as client,
+    ):
+        yield client

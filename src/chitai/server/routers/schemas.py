@@ -1,6 +1,7 @@
 """Pydantic schemas for REST API requests and responses."""
 
 from datetime import datetime  # noqa: TC003
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -142,3 +143,22 @@ class SessionDetailResponse(BaseModel):
     items: list[SessionItemResponse]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class LogMessage(BaseModel):
+    """Frontend log message.
+
+    Attributes
+    ----------
+    level : str
+        Log level (log, info, warn, error)
+    message : str
+        The log message
+    args : list
+        Additional arguments passed to console method
+
+    """
+
+    level: Literal["log", "info", "warn", "error"]
+    message: str
+    args: list = []

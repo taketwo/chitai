@@ -166,7 +166,7 @@ This project uses `just` for common development tasks. Always prefer using these
 - `just docker-build` - Build Docker image
 - `just docker-up` - Start dev environment
 - `just docker-down` - Stop containers
-- `just docker-logs` - View container logs
+- `just docker-logs <ARGS>` - View container logs (e.g., `-f` to follow, `--tail=50` for last 50 lines)
 - `just docker-restart` - Restart dev environment
 
 **When working on code:**

@@ -72,10 +72,20 @@ class AdvanceWordMessage(BaseModel):
     payload: AdvanceWordPayload
 
 
+class NextItemMessage(BaseModel):
+    """Advance to the next item in the queue."""
+
+    type: Literal["next_item"]
+
+
 # Discriminated union for incoming messages
 
 IncomingMessage = Annotated[
-    StartSessionMessage | EndSessionMessage | AddItemMessage | AdvanceWordMessage,
+    StartSessionMessage
+    | EndSessionMessage
+    | AddItemMessage
+    | AdvanceWordMessage
+    | NextItemMessage,
     Field(discriminator="type"),
 ]
 

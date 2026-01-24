@@ -270,6 +270,8 @@ async def _handle_message(websocket: WebSocket, data: dict) -> None:
         await _end_session(session_state, clients)
     elif message.type == "add_item":
         await _add_item(session_state, clients, message.payload.text)
+    elif message.type == "next_item":
+        await _next_item(session_state, clients)
     elif message.type == "advance_word":
         await _advance_word(session_state, clients, message.payload.delta)
 
@@ -329,17 +331,6 @@ async def _end_session(
         db_session_obj = db_session.get(DBSession, session_state.session_id)
         if db_session_obj:
             db_session_obj.ended_at = end_time
-
-            # Complete any incomplete SessionItems
-            incomplete_items = db_session.scalars(
-                select(SessionItem).where(
-                    SessionItem.session_id == session_state.session_id,
-                    SessionItem.completed_at.is_(None),
-                )
-            ).all()
-            for session_item in incomplete_items:
-                session_item.completed_at = end_time
-
             db_session.commit()
 
     logger.info("Session ended: %s", session_state.session_id)
@@ -419,6 +410,61 @@ async def _add_item(
                 len(session_state.queue),
                 item.id,
             )
+
+    await _broadcast_state(session_state, clients)
+
+
+async def _next_item(session_state: SessionState, clients: set[WebSocket]) -> None:
+    """Advance to the next item in the queue.
+
+    Completes the current SessionItem and pops the next item from the queue.
+    If the queue is empty, logs a warning and does nothing.
+
+    Parameters
+    ----------
+    session_state : SessionState
+        The session state
+    clients : set[WebSocket]
+        Connected clients to broadcast to
+
+    """
+    if not session_state.queue:
+        logger.warning("Cannot advance: queue is empty")
+        await _broadcast_state(session_state, clients)
+        return
+
+    with get_session_ctx() as db_session:
+        # Complete current SessionItem if exists
+        if session_state.current_session_item_id:
+            current = db_session.get(SessionItem, session_state.current_session_item_id)
+            if current:
+                current.completed_at = datetime.now(UTC)
+
+        # Pop next SessionItem from queue
+        next_session_item_id = session_state.queue.pop(0)
+        next_session_item = db_session.get(SessionItem, next_session_item_id)
+
+        if not next_session_item:
+            logger.error("SessionItem not found in database: %s", next_session_item_id)
+            await _broadcast_state(session_state, clients)
+            return
+
+        # Mark as displayed and set as current
+        next_session_item.displayed_at = datetime.now(UTC)
+        db_session.commit()
+
+        session_state.current_session_item_id = next_session_item_id
+
+        # Load item text
+        item = db_session.get(Item, next_session_item.item_id)
+        if not item:
+            logger.error("Item not found in database: %s", next_session_item.item_id)
+            session_state.reset()
+            await _broadcast_state(session_state, clients)
+            return
+
+        session_state.set_text(item.text)
+        logger.info("Advanced to next item: %s", item.id)
 
     await _broadcast_state(session_state, clients)
 

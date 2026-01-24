@@ -131,9 +131,7 @@ class SessionItem(Base):
     item_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("items.id"), nullable=False
     )
-    displayed_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=utc_now
-    )
+    displayed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships

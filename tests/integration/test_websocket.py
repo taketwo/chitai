@@ -1,4 +1,4 @@
-"""Integration tests for WebSocket server."""
+"""Integration tests for WebSocket functionality."""
 
 import asyncio
 from datetime import UTC

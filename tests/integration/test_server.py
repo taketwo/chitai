@@ -324,27 +324,123 @@ async def test_add_item_queues_when_item_displayed(db_session):
 
 
 @pytest.mark.asyncio
-async def test_end_session_completes_all_session_items(db_session):
-    """Test that ending session completes all incomplete SessionItems."""
+async def test_next_item_advances_through_queue(db_session):
+    """Test that next_item advances through queued items."""
     async with started_session() as (controller_ws, _, session_id):
-        # Add two items
+        # Add three items
+        await controller_ws.send_json({"type": "add_item", "payload": {"text": "один"}})
+        state = await controller_ws.receive_json()
+        assert state["payload"]["words"] == ["один"]
+        assert len(state["payload"]["queue"]) == 0
+
+        await controller_ws.send_json({"type": "add_item", "payload": {"text": "два"}})
+        state = await controller_ws.receive_json()
+        assert len(state["payload"]["queue"]) == 1
+
+        await controller_ws.send_json({"type": "add_item", "payload": {"text": "три"}})
+        state = await controller_ws.receive_json()
+        assert len(state["payload"]["queue"]) == 2
+
+        # Get SessionItem IDs for verification
+        item1 = db_session.query(Item).filter_by(text="один").first()
+        item2 = db_session.query(Item).filter_by(text="два").first()
+
+        session_item1 = (
+            db_session.query(SessionItem)
+            .filter_by(session_id=session_id, item_id=item1.id)
+            .first()
+        )
+        session_item2 = (
+            db_session.query(SessionItem)
+            .filter_by(session_id=session_id, item_id=item2.id)
+            .first()
+        )
+
+        # Advance to next item
+        await controller_ws.send_json({"type": "next_item"})
+        state = await controller_ws.receive_json()
+
+        # Verify first item completed, second item displayed
+        db_session.expire_all()
+        session_item1 = db_session.get(SessionItem, session_item1.id)
+        session_item2 = db_session.get(SessionItem, session_item2.id)
+
+        assert session_item1.completed_at is not None
+        assert session_item2.displayed_at is not None
+        assert session_item2.completed_at is None
+        assert state["payload"]["words"] == ["два"]
+        assert len(state["payload"]["queue"]) == 1
+
+        # Advance to third item
+        await controller_ws.send_json({"type": "next_item"})
+        state = await controller_ws.receive_json()
+
+        assert state["payload"]["words"] == ["три"]
+        assert len(state["payload"]["queue"]) == 0
+
+
+@pytest.mark.asyncio
+async def test_next_item_with_empty_queue():
+    """Test that next_item with empty queue does nothing."""
+    async with started_session() as (controller_ws, _, _):
+        # Add one item
+        await controller_ws.send_json({"type": "add_item", "payload": {"text": "один"}})
+        state = await controller_ws.receive_json()
+        assert state["payload"]["words"] == ["один"]
+
+        # Try to advance with empty queue
+        await controller_ws.send_json({"type": "next_item"})
+        state = await controller_ws.receive_json()
+
+        # Should still show same item
+        assert state["payload"]["words"] == ["один"]
+
+
+@pytest.mark.asyncio
+async def test_end_session_does_not_complete_items(db_session):
+    """Test that ending session does NOT auto-complete SessionItems.
+
+    Items are only completed when explicitly advanced via next_item. Ending a session
+    should leave incomplete items as evidence of what was displayed/queued but not
+    finished.
+    """
+    async with started_session() as (controller_ws, _, session_id):
+        # Add two items (first displayed, second queued)
         await controller_ws.send_json({"type": "add_item", "payload": {"text": "один"}})
         await controller_ws.receive_json()
 
         await controller_ws.send_json({"type": "add_item", "payload": {"text": "два"}})
         await controller_ws.receive_json()
 
-        # End session
+        # End session without advancing
         await controller_ws.send_json({"type": "end_session"})
         await controller_ws.receive_json()
 
-        # Verify all SessionItems are completed
+        # Verify SessionItems are NOT auto-completed
         session_items = (
             db_session.query(SessionItem).filter_by(session_id=session_id).all()
         )
         assert len(session_items) == 2
-        for session_item in session_items:
-            assert session_item.completed_at is not None
+
+        # First item was displayed but not completed
+        item1 = db_session.query(Item).filter_by(text="один").first()
+        session_item1 = (
+            db_session.query(SessionItem)
+            .filter_by(session_id=session_id, item_id=item1.id)
+            .first()
+        )
+        assert session_item1.displayed_at is not None
+        assert session_item1.completed_at is None
+
+        # Second item was queued but never displayed
+        item2 = db_session.query(Item).filter_by(text="два").first()
+        session_item2 = (
+            db_session.query(SessionItem)
+            .filter_by(session_id=session_id, item_id=item2.id)
+            .first()
+        )
+        assert session_item2.displayed_at is None
+        assert session_item2.completed_at is None
 
 
 @pytest.mark.asyncio

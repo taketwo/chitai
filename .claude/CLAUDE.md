@@ -81,7 +81,18 @@ chore: add justfile recipe for database migrations
 
 Use `uv add <package>` for runtime dependencies, `uv add --dev <package>` for dev dependencies.
 
-## SQLAlchemy
+## Framework & Library Standards
+
+### Pydantic v2
+
+- Use `model_config = ConfigDict(from_attributes=True)` not `class Config`
+
+### FastAPI
+
+- Use `Annotated[Session, Depends(get_session)]` for dependencies
+- Runtime type imports (`Session`, `Generator`) need `# noqa: TC002/TC003`
+
+### SQLAlchemy
 
 Use **SQLAlchemy 2.0 query style exclusively**:
 
@@ -90,7 +101,7 @@ Use **SQLAlchemy 2.0 query style exclusively**:
 - `.where()` instead of `.filter_by()`
 - `.is_(None)` for NULL checks
 
-## WebSockets
+### WebSockets
 
 Starlette WebSocket operations raise:
 
@@ -114,7 +125,7 @@ Handling Ruff diagnostics:
    - File-level ignore: `# ruff: noqa: <code>` at top of file for single files
    - Pattern-based ignore: Add to `lint.per-file-ignores` in `pyproject.toml` for file patterns (e.g., `tests/**/*.py`)
    - Project-level ignore: Add to `lint.ignore` in `pyproject.toml`
-4. **Project-level ignores require permission** - NEVER add a new rule to `lint.ignore` in `pyproject.toml` without EXPLICIT permission from the user
+4. **ALL ignores require explicit user permission** - NEVER add any ignore without asking the user first and getting EXPLICIT permission
 
 ## Development Workflow
 

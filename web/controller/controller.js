@@ -8,6 +8,11 @@ const startSessionBtn = document.getElementById("startSessionBtn");
 const endSessionBtn = document.getElementById("endSessionBtn");
 
 let sessionActive = false;
+let currentState = {
+  words: [],
+  current_word_index: 0,
+  queue: [],
+};
 
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const ws = new WebSocket(
@@ -38,7 +43,14 @@ ws.onmessage = (event) => {
   console.log("Received:", data);
 
   if (data.type === "state") {
-    const { session_id, words, current_word_index } = data.payload;
+    const { session_id, words, current_word_index, queue } = data.payload;
+
+    // Update current state
+    currentState = {
+      words: words || [],
+      current_word_index: current_word_index || 0,
+      queue: queue || [],
+    };
 
     // Update session state based on session_id presence
     const wasActive = sessionActive;
@@ -66,6 +78,7 @@ ws.onmessage = (event) => {
     if (words && words.length > 0) {
       document.querySelector(".controls").style.display = "flex";
       updateCurrentWord(words[current_word_index]);
+      updateAdvanceButton();
     } else {
       document.querySelector(".controls").style.display = "none";
     }
@@ -106,6 +119,21 @@ function updateCurrentWord(word) {
       }
     }
   });
+}
+
+function updateAdvanceButton() {
+  const isLastWord =
+    currentState.words.length > 0 &&
+    currentState.current_word_index === currentState.words.length - 1;
+  const hasQueue = currentState.queue.length > 0;
+
+  if (isLastWord && hasQueue) {
+    // On last word with items in queue - show "next item" mode with green color
+    advanceBtn.classList.add("next-item");
+  } else {
+    // Not on last word or no queue - show normal "next word" mode
+    advanceBtn.classList.remove("next-item");
+  }
 }
 
 ws.onclose = () => {
@@ -159,12 +187,26 @@ backBtn.addEventListener("click", () => {
 });
 
 advanceBtn.addEventListener("click", () => {
-  const message = {
-    type: "advance_word",
-    payload: {
-      delta: 1,
-    },
-  };
+  const isLastWord =
+    currentState.words.length > 0 &&
+    currentState.current_word_index === currentState.words.length - 1;
+  const hasQueue = currentState.queue.length > 0;
+
+  let message;
+  if (isLastWord && hasQueue) {
+    // On last word with queue - send next_item
+    message = {
+      type: "next_item",
+    };
+  } else {
+    // Otherwise send advance_word
+    message = {
+      type: "advance_word",
+      payload: {
+        delta: 1,
+      },
+    };
+  }
   ws.send(JSON.stringify(message));
   console.log("Sent:", message);
 });

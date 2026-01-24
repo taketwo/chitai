@@ -1,16 +1,100 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
-    <title>Admin</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chitai Admin</title>
+    <link rel="stylesheet" href="/web/styles.css" />
+    <link rel="stylesheet" href="/web/admin/admin.css" />
+    <script src="/web/debug.js"></script>
+    <script src="/web/admin/admin.js"></script>
+    <script defer src="/web/vendor/alpine.min.js"></script>
   </head>
   <body>
-    <h1>Admin</h1>
-    <script>
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
-      ws.onopen = () => console.log("Connected");
-      ws.onmessage = (e) => console.log("Received:", e.data);
-      ws.onclose = () => console.log("Disconnected");
-    </script>
+    <div class="container" x-data="adminApp()" x-init="init()">
+      <header>
+        <h1>Chitai Admin</h1>
+      </header>
+
+      <!-- Tab Navigation -->
+      <nav class="tabs">
+        <button
+          @click="currentTab = 'items'"
+          :class="{ active: currentTab === 'items' }"
+        >
+          Items
+        </button>
+        <button
+          @click="currentTab = 'sessions'"
+          :class="{ active: currentTab === 'sessions' }"
+        >
+          Sessions
+        </button>
+      </nav>
+
+      <!-- Items Tab -->
+      <section x-show="currentTab === 'items'" class="tab-content">
+        <h2>Items</h2>
+        <template x-if="items.length === 0">
+          <p class="placeholder">No items found.</p>
+        </template>
+        <template x-if="items.length > 0">
+          <table>
+            <thead>
+              <tr>
+                <th>Text</th>
+                <th>Language</th>
+                <th>Created At</th>
+                <th>Usage Count</th>
+                <th>Last Used At</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="item in items" :key="item.id">
+                <tr>
+                  <td x-text="item.text"></td>
+                  <td x-text="item.language"></td>
+                  <td x-text="formatDate(item.created_at)"></td>
+                  <td x-text="item.usage_count"></td>
+                  <td x-text="formatDate(item.last_used_at)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </template>
+      </section>
+
+      <!-- Sessions Tab -->
+      <section x-show="currentTab === 'sessions'" class="tab-content">
+        <h2>Sessions</h2>
+        <template x-if="sessions.length === 0">
+          <p class="placeholder">No sessions found.</p>
+        </template>
+        <template x-if="sessions.length > 0">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Language</th>
+                <th>Started At</th>
+                <th>Ended At</th>
+                <th>Item Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="session in sessions" :key="session.id">
+                <tr>
+                  <td x-text="shortenId(session.id)"></td>
+                  <td x-text="session.language"></td>
+                  <td x-text="formatDate(session.started_at)"></td>
+                  <td x-text="formatDate(session.ended_at)"></td>
+                  <td x-text="session.item_count"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </template>
+      </section>
+    </div>
   </body>
 </html>

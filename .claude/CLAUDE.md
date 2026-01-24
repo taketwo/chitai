@@ -174,4 +174,9 @@ This project uses `just` for common development tasks. Always prefer using these
 2. Use `just check` to verify all checks pass (mimics CI)
 3. Use `just test` to run tests with coverage
 
+**Debugging with docker logs:**
+- To see frontend console logs in server logs, use `just docker-logs -f` or `just docker-logs --tail=100`
+- Frontend logs are prefixed with `[FRONTEND]` and forwarded via `/api/logs` endpoint
+- The `web/debug.js` shim intercepts all console methods and sends them to the backend
+
 **If a recipe is missing for a common task, add it to the justfile** rather than documenting manual commands.

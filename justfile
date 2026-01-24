@@ -75,9 +75,9 @@ docker-up:
 docker-down:
     docker compose -f docker/compose.yaml --profile dev down
 
-# View container logs
-docker-logs:
-    docker compose -f docker/compose.yaml --profile dev logs -f
+# View container logs (pass args like: -f, --tail=50, etc.)
+docker-logs *ARGS:
+    docker compose -f docker/compose.yaml --profile dev logs {{ARGS}}
 
 # Rebuild and restart dev environment
 docker-restart:

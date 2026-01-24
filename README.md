@@ -109,8 +109,14 @@ The dev environment uses Docker Compose with hot-reload enabled:
 # Start dev environment (builds image if needed)
 just docker-up
 
-# View logs
-just docker-logs
+# View logs (follow mode)
+just docker-logs -f
+
+# View last 50 lines of logs
+just docker-logs --tail=50
+
+# View last 100 lines and follow
+just docker-logs --tail=100 -f
 
 # Stop containers
 just docker-down

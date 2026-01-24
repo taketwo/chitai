@@ -1,14 +1,13 @@
 """Pytest configuration for integration tests."""
 
-from contextlib import contextmanager
 from typing import TYPE_CHECKING
-from unittest.mock import patch
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from chitai.db.base import Base
+from chitai.db.engine import configure_session_factory
 from chitai.server.app import app
 
 if TYPE_CHECKING:
@@ -85,25 +84,19 @@ def db_session(test_db: sessionmaker[Session]) -> Generator[Session]:
 
 
 @pytest.fixture(autouse=True)
-def patch_db_access(test_db: sessionmaker[Session]):
-    """Patch get_session() to use test database.
+def use_test_db(test_db: sessionmaker[Session]):
+    """Configure get_session() to use test database.
 
     Automatically applied to all tests. Ensures that any code calling get_session()
-    receives a connection to the test database instead of the real database file.
+    or get_session_ctx() receives a connection to the test database instead of the
+    real database file.
 
     Parameters
     ----------
     test_db : sessionmaker[Session]
         Session factory from test_db fixture
+
     """
-
-    @contextmanager
-    def test_get_session() -> Generator[Session]:
-        session = test_db()
-        try:
-            yield session
-        finally:
-            session.close()
-
-    with patch("chitai.server.app.get_session", test_get_session):
-        yield
+    configure_session_factory(test_db)
+    yield
+    configure_session_factory(None)  # Reset to default

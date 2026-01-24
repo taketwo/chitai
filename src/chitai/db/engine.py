@@ -1,17 +1,12 @@
 """Database engine and session management."""
 
+from collections.abc import Generator  # noqa: TC003
 from contextlib import contextmanager
-from typing import TYPE_CHECKING
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 from chitai.settings import settings
-
-if TYPE_CHECKING:
-    from collections.abc import Generator
-
-    from sqlalchemy.orm import Session
 
 # Create engine
 engine = create_engine(
@@ -20,26 +15,42 @@ engine = create_engine(
     echo=False,
 )
 
-# Create session factory
+# Create default session factory instance
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Injectable global session factory
+_session_factory: sessionmaker[Session] = SessionLocal
 
 
-@contextmanager
+def configure_session_factory(factory: sessionmaker[Session] | None) -> None:
+    """Configure the session factory used by get_session().
+
+    This allows tests to inject a test database session factory without patching.
+
+    Parameters
+    ----------
+    factory : sessionmaker[Session] | None
+        Session factory to use. Pass None to reset to default (SessionLocal).
+
+    """
+    global _session_factory  # noqa: PLW0603
+    _session_factory = factory if factory is not None else SessionLocal
+
+
 def get_session() -> Generator[Session]:
-    """Get a database session.
+    """Database session generator for FastAPI Depends().
 
     Yields
     ------
     Session
         SQLAlchemy database session
 
-    Examples
-    --------
-    >>> with get_session() as session:
-    ...     items = session.query(Item).all()
     """
-    session = SessionLocal()
+    session = _session_factory()
     try:
         yield session
     finally:
         session.close()
+
+
+# Context manager wrapper for WebSocket handlers
+get_session_ctx = contextmanager(get_session)

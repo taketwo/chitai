@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from chitai.db.engine import get_session
+from chitai.db.engine import get_session_ctx
 from chitai.db.models import Item, Language, SessionItem
 from chitai.db.models import Session as DBSession
 from chitai.server.protocol import StateMessage, incoming_message_adapter
@@ -222,7 +222,7 @@ async def _start_session(session_state: SessionState, clients: set[WebSocket]) -
         logger.warning("Session already active, ignoring start_session")
         return
 
-    with get_session() as db_session:
+    with get_session_ctx() as db_session:
         db_session_obj = DBSession(language=Language.RUSSIAN)
         db_session.add(db_session_obj)
         db_session.commit()
@@ -258,7 +258,7 @@ async def _end_session(
 
     end_time = ended_at or datetime.now(UTC)
 
-    with get_session() as db_session:
+    with get_session_ctx() as db_session:
         db_session_obj = db_session.get(DBSession, session_state.session_id)
         if db_session_obj:
             db_session_obj.ended_at = end_time
@@ -304,7 +304,7 @@ async def _add_item(
         logger.warning("Cannot add item: no active session")
         return
 
-    with get_session() as db_session:
+    with get_session_ctx() as db_session:
         db_session_obj = db_session.get(DBSession, session_state.session_id)
         if not db_session_obj:
             logger.error(

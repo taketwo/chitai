@@ -14,7 +14,7 @@ from chitai.db.engine import get_session_ctx
 from chitai.db.models import Item, Language, SessionItem
 from chitai.db.models import Session as DBSession
 from chitai.server.protocol import StateMessage, incoming_message_adapter
-from chitai.server.routers import items_router, sessions_router
+from chitai.server.routers import items_router, logs_router, sessions_router
 from chitai.server.session import SessionState
 from chitai.settings import settings
 
@@ -43,6 +43,7 @@ app = FastAPI(title="Chitai")
 app.state.context = AppStateContext()
 
 app.include_router(items_router)
+app.include_router(logs_router)
 app.include_router(sessions_router)
 app.mount("/web", StaticFiles(directory="web", html=True), name="web")
 

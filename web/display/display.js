@@ -1,33 +1,17 @@
 const statusEl = document.getElementById("status");
 const textDisplay = document.getElementById("textDisplay");
 
-const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-const ws = new WebSocket(
-  `${protocol}//${window.location.host}/ws?role=display`,
+const ws = new ChitaiWebSocket(
+  "display",
+  {
+    onMessage: handleMessage,
+  },
+  {
+    statusElement: statusEl,
+  },
 );
 
-let isPageUnloading = false;
-window.addEventListener("beforeunload", () => {
-  isPageUnloading = true;
-});
-
-// Show disconnected indicator only if connection takes too long or fails
-let connectionTimeout = setTimeout(() => {
-  if (statusEl.className !== "status connected") {
-    statusEl.className = "status disconnected";
-  }
-}, 1000); // 1 second grace period
-
-ws.onopen = () => {
-  console.log("Connected");
-  clearTimeout(connectionTimeout);
-  statusEl.className = "status connected";
-};
-
-ws.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  console.log("Received:", data);
-
+function handleMessage(data) {
   if (data.type === "state") {
     const { words, syllables, current_word_index } = data.payload;
     if (words && words.length > 0) {
@@ -36,7 +20,7 @@ ws.onmessage = (event) => {
       textDisplay.innerHTML = '<span class="placeholder"></span>';
     }
   }
-};
+}
 
 function renderWords(words, syllables, currentIndex) {
   // Settings (hardcoded for now)
@@ -86,14 +70,3 @@ function renderWords(words, syllables, currentIndex) {
     textDisplay.appendChild(wordEl);
   });
 }
-
-ws.onclose = () => {
-  console.log("Disconnected");
-  if (!isPageUnloading) {
-    statusEl.className = "status disconnected";
-  }
-};
-
-ws.onerror = (error) => {
-  console.error("WebSocket error:", error);
-};

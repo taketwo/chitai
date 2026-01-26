@@ -20,7 +20,7 @@ class StatePayload(BaseModel):
     session_id: str | None
     words: list[str]
     syllables: list[list[str]]
-    current_word_index: int
+    current_word_index: int | None
     queue: list[SessionItemInfo]
 
 

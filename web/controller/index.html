@@ -13,30 +13,63 @@
     <link rel="stylesheet" href="/web/styles.css" />
     <script src="/web/debug.js"></script>
     <script src="/web/websocket.js"></script>
+    <script src="/web/controller/controller.js"></script>
+    <script defer src="/web/vendor/alpine.min.js"></script>
   </head>
   <body class="controller">
-    <div class="container">
-      <div id="status" class="status"></div>
+    <div class="container" x-data="controllerApp()" x-init="init()">
+      <div x-ref="status" class="status"></div>
 
       <div class="session-controls">
-        <button id="startSessionBtn" disabled>Start session</button>
-        <button id="endSessionBtn" style="display: none" disabled>
+        <button
+          x-show="!sessionActive"
+          :disabled="!connected"
+          @click="startSession"
+        >
+          Start session
+        </button>
+        <button
+          x-show="sessionActive"
+          :disabled="!connected"
+          @click="endSession"
+        >
           End session
         </button>
       </div>
 
-      <div class="controls" style="display: none">
-        <button id="backBtn" class="back-btn" disabled>←</button>
-        <div id="currentWord" class="current-word">—</div>
-        <button id="advanceBtn" class="advance-btn" disabled>→</button>
+      <div class="controls" x-show="hasWords">
+        <button
+          class="back-btn"
+          :disabled="!sessionActive"
+          @click="advanceWord(-1)"
+        >
+          ←
+        </button>
+        <div
+          x-ref="currentWord"
+          class="current-word"
+          x-text="currentWord"
+        ></div>
+        <button
+          class="advance-btn"
+          :class="{ 'next-item': isNextItemMode }"
+          :disabled="!sessionActive"
+          @click="advance"
+        >
+          →
+        </button>
       </div>
 
       <div class="input-group">
-        <textarea id="textInput" placeholder="Enter text..."></textarea>
-        <button id="submitBtn" disabled>Send to display</button>
+        <textarea
+          x-model="textInput"
+          placeholder="Enter text..."
+          @keydown.enter.prevent="handleEnter"
+        ></textarea>
+        <button :disabled="!sessionActive" @click="submitText">
+          Send to display
+        </button>
       </div>
     </div>
-
-    <script src="/web/controller/controller.js"></script>
   </body>
 </html>

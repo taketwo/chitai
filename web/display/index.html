@@ -13,16 +13,49 @@
     <link rel="stylesheet" href="/web/styles.css" />
     <script src="/web/debug.js"></script>
     <script src="/web/websocket.js"></script>
+    <script src="/web/display/display.js"></script>
+    <script defer src="/web/vendor/alpine.min.js"></script>
   </head>
   <body class="display">
-    <div id="status" class="status"></div>
+    <div x-data="displayApp()" x-init="init()">
+      <div x-ref="status" class="status"></div>
 
-    <div class="container">
-      <div id="textDisplay">
-        <span class="placeholder"></span>
+      <div class="container">
+        <div id="textDisplay">
+          <template x-if="!hasWords">
+            <span class="placeholder"></span>
+          </template>
+          <template x-if="hasWords">
+            <template x-for="(word, index) in words" :key="index">
+              <div
+                class="word"
+                :class="{
+                  read: index < currentWordIndex,
+                  current: index === currentWordIndex,
+                  future: index > currentWordIndex,
+                  dimmed: (index < currentWordIndex && dimReadWords) || (index > currentWordIndex && dimFutureWords)
+                }"
+              >
+                <template x-if="showSyllables && syllables[index]">
+                  <template
+                    x-for="(syllable, sylIndex) in syllables[index]"
+                    :key="sylIndex"
+                  >
+                    <span
+                      class="syllable"
+                      :class="{ 'syllable-with-separator': sylIndex < syllables[index].length - 1 }"
+                      x-text="syllable"
+                    ></span>
+                  </template>
+                </template>
+                <template x-if="!showSyllables || !syllables[index]">
+                  <span x-text="word"></span>
+                </template>
+              </div>
+            </template>
+          </template>
+        </div>
       </div>
     </div>
-
-    <script src="/web/display/display.js"></script>
   </body>
 </html>

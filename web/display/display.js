@@ -1,72 +1,38 @@
-const statusEl = document.getElementById("status");
-const textDisplay = document.getElementById("textDisplay");
+function displayApp() {
+  return {
+    words: [],
+    syllables: [],
+    currentWordIndex: 0,
+    showSyllables: true,
+    dimReadWords: true,
+    dimFutureWords: false,
+    ws: null,
 
-const ws = new ChitaiWebSocket(
-  "display",
-  {
-    onMessage: handleMessage,
-  },
-  {
-    statusElement: statusEl,
-  },
-);
+    init() {
+      this.ws = new ChitaiWebSocket(
+        "display",
+        {
+          onMessage: (data) => this.handleMessage(data),
+        },
+        {
+          statusElement: this.$refs.status,
+        },
+      );
+    },
 
-function handleMessage(data) {
-  if (data.type === "state") {
-    const { words, syllables, current_word_index } = data.payload;
-    if (words && words.length > 0) {
-      renderWords(words, syllables, current_word_index);
-    } else {
-      textDisplay.innerHTML = '<span class="placeholder"></span>';
-    }
-  }
-}
+    get hasWords() {
+      return this.words.length > 0;
+    },
 
-function renderWords(words, syllables, currentIndex) {
-  // Settings (hardcoded for now)
-  const showSyllables = true;
-  const dimReadWords = true;
-  const dimFutureWords = false;
+    handleMessage(data) {
+      if (data.type === "state") {
+        const { words, syllables, current_word_index } = data.payload;
 
-  textDisplay.innerHTML = "";
-
-  words.forEach((word, index) => {
-    const wordEl = document.createElement("div");
-    wordEl.className = "word";
-
-    // Render word with or without syllables
-    if (showSyllables) {
-      const wordSyllables = syllables[index] || [word];
-      wordSyllables.forEach((syllable, sylIndex) => {
-        const syllableSpan = document.createElement("span");
-        syllableSpan.textContent = syllable;
-        syllableSpan.className = "syllable";
-
-        // Add separator class for all but the last syllable
-        if (sylIndex < wordSyllables.length - 1) {
-          syllableSpan.classList.add("syllable-with-separator");
-        }
-
-        wordEl.appendChild(syllableSpan);
-      });
-    } else {
-      wordEl.textContent = word;
-    }
-
-    if (index < currentIndex) {
-      wordEl.classList.add("read");
-      if (dimReadWords) {
-        wordEl.classList.add("dimmed");
+        // Update state
+        this.words = words || [];
+        this.syllables = syllables || [];
+        this.currentWordIndex = current_word_index || 0;
       }
-    } else if (index === currentIndex) {
-      wordEl.classList.add("current");
-    } else {
-      wordEl.classList.add("future");
-      if (dimFutureWords) {
-        wordEl.classList.add("dimmed");
-      }
-    }
-
-    textDisplay.appendChild(wordEl);
-  });
+    },
+  };
 }

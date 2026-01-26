@@ -110,6 +110,17 @@ body.controller {
   margin-top: 12px;
 }
 
+.controller .input-group .button-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.controller .input-group .button-group button {
+  flex: 1;
+  margin-top: 0;
+}
+
 .controller .controls {
   margin-bottom: 20px;
   display: flex;

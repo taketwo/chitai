@@ -4,7 +4,7 @@ function controllerApp() {
     sessionActive: false,
     textInput: "",
     words: [],
-    currentWordIndex: 0,
+    currentWordIndex: null,
     queue: [],
     ws: null,
 
@@ -29,8 +29,16 @@ function controllerApp() {
     },
 
     get currentWord() {
-      if (this.words.length > 0 && this.currentWordIndex < this.words.length) {
+      if (
+        this.currentWordIndex !== null &&
+        this.words.length > 0 &&
+        this.currentWordIndex < this.words.length
+      ) {
         return this.words[this.currentWordIndex];
+      }
+      // When completed, show the last word
+      if (this.isCompleted && this.words.length > 0) {
+        return this.words[this.words.length - 1];
       }
       return "—";
     },
@@ -39,14 +47,30 @@ function controllerApp() {
       return this.words.length > 0;
     },
 
+    get isCompleted() {
+      return this.currentWordIndex === null;
+    },
+
     get isLastWord() {
       return (
-        this.words.length > 0 && this.currentWordIndex === this.words.length - 1
+        this.words.length > 0 &&
+        this.currentWordIndex !== null &&
+        this.currentWordIndex === this.words.length - 1
       );
     },
 
     get isNextItemMode() {
-      return this.isLastWord && this.queue.length > 0;
+      return (this.isLastWord || this.isCompleted) && this.queue.length > 0;
+    },
+
+    get advanceButtonLabel() {
+      if (this.isCompleted && this.queue.length > 0) {
+        return "→"; // Next item
+      } else if (this.isLastWord) {
+        return "✓"; // Mark complete
+      } else {
+        return "→"; // Next word
+      }
     },
 
     handleStatusChange(connected) {
@@ -59,7 +83,8 @@ function controllerApp() {
 
         // Update state
         this.words = words || [];
-        this.currentWordIndex = current_word_index || 0;
+        this.currentWordIndex =
+          current_word_index !== undefined ? current_word_index : null;
         this.queue = queue || [];
 
         // Update session state
@@ -104,7 +129,23 @@ function controllerApp() {
       });
     },
 
-    submitText() {
+    submitAndShow() {
+      const text = this.textInput.trim();
+      if (text) {
+        this.ws.send({
+          type: "add_item",
+          payload: {
+            text: text,
+          },
+        });
+        this.ws.send({
+          type: "next_item",
+        });
+        this.textInput = "";
+      }
+    },
+
+    submitToQueue() {
       const text = this.textInput.trim();
       if (text) {
         this.ws.send({
@@ -119,7 +160,7 @@ function controllerApp() {
 
     handleEnter(event) {
       if (!event.shiftKey) {
-        this.submitText();
+        this.submitAndShow();
       }
     },
 
@@ -133,13 +174,13 @@ function controllerApp() {
     },
 
     advance() {
-      if (this.isNextItemMode) {
-        // On last word with queue - send next_item
+      if (this.isCompleted && this.queue.length > 0) {
+        // Completed with queue - advance to next item
         this.ws.send({
           type: "next_item",
         });
       } else {
-        // Otherwise send advance_word
+        // Otherwise advance word (or mark complete if on last word)
         this.advanceWord(1);
       }
     },

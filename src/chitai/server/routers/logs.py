@@ -15,9 +15,14 @@ logger = logging.getLogger(__name__)
 async def receive_frontend_log(log: LogMessage) -> dict[str, str]:
     """Receive frontend console logs and write to server log.
 
-    This endpoint allows frontend JavaScript to transmit console logs to the
-    backend, making it easier to debug client-side issues by consolidating
-    all logs in one place.
+    This endpoint allows frontend JavaScript to transmit console logs to the backend,
+    making it easier to debug client-side issues by consolidating all logs in one place.
+
+    Log levels are mapped to Python logging levels:
+    - "error" → logger.error()
+    - "warn" → logger.warning()
+    - "info" → logger.info()
+    - "log" and any other level → logger.info()
 
     Parameters
     ----------
@@ -41,6 +46,6 @@ async def receive_frontend_log(log: LogMessage) -> dict[str, str]:
     elif log.level == "info":
         logger.info(full_message)
     else:
-        logger.debug(full_message)
+        logger.info(full_message)
 
     return {"status": "ok"}

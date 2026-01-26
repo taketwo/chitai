@@ -2,7 +2,7 @@ function displayApp() {
   return {
     words: [],
     syllables: [],
-    currentWordIndex: 0,
+    currentWordIndex: null,
     showSyllables: true,
     dimReadWords: true,
     dimFutureWords: false,
@@ -24,6 +24,10 @@ function displayApp() {
       return this.words.length > 0;
     },
 
+    get isCompleted() {
+      return this.currentWordIndex === null;
+    },
+
     handleMessage(data) {
       if (data.type === "state") {
         const { words, syllables, current_word_index } = data.payload;
@@ -31,7 +35,8 @@ function displayApp() {
         // Update state
         this.words = words || [];
         this.syllables = syllables || [];
-        this.currentWordIndex = current_word_index || 0;
+        this.currentWordIndex =
+          current_word_index !== undefined ? current_word_index : null;
       }
     },
   };

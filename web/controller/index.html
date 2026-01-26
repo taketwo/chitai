@@ -40,7 +40,7 @@
       <div class="controls" x-show="hasWords">
         <button
           class="back-btn"
-          :disabled="!sessionActive"
+          :disabled="!sessionActive || isCompleted"
           @click="advanceWord(-1)"
         >
           ←
@@ -53,11 +53,10 @@
         <button
           class="advance-btn"
           :class="{ 'next-item': isNextItemMode }"
-          :disabled="!sessionActive"
+          :disabled="!sessionActive || (isCompleted && queue.length === 0)"
           @click="advance"
-        >
-          →
-        </button>
+          x-text="advanceButtonLabel"
+        ></button>
       </div>
 
       <div class="input-group">
@@ -66,9 +65,20 @@
           placeholder="Enter text..."
           @keydown.enter.prevent="handleEnter"
         ></textarea>
-        <button :disabled="!sessionActive" @click="submitText">
-          Send to display
-        </button>
+        <div class="button-group">
+          <button
+            :disabled="!sessionActive || !textInput.trim()"
+            @click="submitToQueue"
+          >
+            Enqueue
+          </button>
+          <button
+            :disabled="!sessionActive || !textInput.trim() || !isCompleted"
+            @click="submitAndShow"
+          >
+            Show
+          </button>
+        </div>
       </div>
     </div>
   </body>

@@ -30,10 +30,10 @@
               <div
                 class="word"
                 :class="{
-                  read: index < currentWordIndex,
-                  current: index === currentWordIndex,
-                  future: index > currentWordIndex,
-                  dimmed: (index < currentWordIndex && dimReadWords) || (index > currentWordIndex && dimFutureWords)
+                  read: !isCompleted && index < currentWordIndex,
+                  current: !isCompleted && index === currentWordIndex,
+                  future: !isCompleted && index > currentWordIndex,
+                  dimmed: !isCompleted && ((index < currentWordIndex && dimReadWords) || (index > currentWordIndex && dimFutureWords))
                 }"
               >
                 <template x-if="showSyllables && syllables[index]">

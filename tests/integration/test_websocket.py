@@ -763,3 +763,72 @@ async def test_complete_session_flow_end_to_end(db_session):  # noqa: PLR0915
 
     assert session_item3.displayed_at is not None
     assert session_item3.completed_at is None
+
+
+@pytest.mark.asyncio
+async def test_completed_state_flow():
+    """Test item completed state flow.
+
+    This test verifies the completed state behavior:
+    1. Advance through words to last word
+    2. Advance past last word to mark as completed (current_word_index becomes None)
+    3. Verify cannot go back from completed state
+    4. Add item to queue while in completed state
+    5. Advance from completed state to next queued item
+    """
+    async with started_session() as (controller_ws, _, _):
+        # Add first item
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "один два три"}}
+        )
+        state = await controller_ws.receive_json()
+
+        assert state["payload"]["words"] == ["один", "два", "три"]
+        assert state["payload"]["current_word_index"] == 0
+        assert len(state["payload"]["queue"]) == 0
+
+        # Advance to second word
+        await controller_ws.send_json({"type": "advance_word", "payload": {"delta": 1}})
+        state = await controller_ws.receive_json()
+        assert state["payload"]["current_word_index"] == 1
+
+        # Advance to last word
+        await controller_ws.send_json({"type": "advance_word", "payload": {"delta": 1}})
+        state = await controller_ws.receive_json()
+        assert state["payload"]["current_word_index"] == 2
+
+        # Advance past last word - mark as completed (current_word_index → None)
+        await controller_ws.send_json({"type": "advance_word", "payload": {"delta": 1}})
+        state = await controller_ws.receive_json()
+        assert state["payload"]["current_word_index"] is None
+        assert state["payload"]["words"] == ["один", "два", "три"]
+
+        # Try to go back - should not work (no state broadcast expected)
+        await controller_ws.send_json(
+            {"type": "advance_word", "payload": {"delta": -1}}
+        )
+
+        # Should not receive any state update since advance failed
+        with pytest.raises(asyncio.TimeoutError):
+            await asyncio.wait_for(controller_ws.receive_json(), timeout=0.1)
+
+        # Add item to queue while in completed state
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "новый текст"}}
+        )
+        state = await controller_ws.receive_json()
+
+        # Should still be in completed state, with new item in queue
+        assert state["payload"]["current_word_index"] is None
+        assert state["payload"]["words"] == ["один", "два", "три"]
+        assert len(state["payload"]["queue"]) == 1
+        assert state["payload"]["queue"][0]["text"] == "новый текст"
+
+        # Advance from completed state to next item
+        await controller_ws.send_json({"type": "next_item"})
+        state = await controller_ws.receive_json()
+
+        # Should now be on the new item at first word
+        assert state["payload"]["words"] == ["новый", "текст"]
+        assert state["payload"]["current_word_index"] == 0
+        assert len(state["payload"]["queue"]) == 0

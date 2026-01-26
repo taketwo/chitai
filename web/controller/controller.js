@@ -14,34 +14,30 @@ let currentState = {
   queue: [],
 };
 
-const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-const ws = new WebSocket(
-  `${protocol}//${window.location.host}/ws?role=controller`,
+const ws = new ChitaiWebSocket(
+  "controller",
+  {
+    onMessage: handleMessage,
+    onStatusChange: handleStatusChange,
+  },
+  {
+    statusElement: statusEl,
+  },
 );
 
-let isPageUnloading = false;
-window.addEventListener("beforeunload", () => {
-  isPageUnloading = true;
-});
-
-// Show disconnected indicator only if connection takes too long or fails
-let connectionTimeout = setTimeout(() => {
-  if (statusEl.className !== "status connected") {
-    statusEl.className = "status disconnected";
+function handleStatusChange(connected) {
+  if (connected) {
+    startSessionBtn.disabled = false;
+  } else {
+    startSessionBtn.disabled = true;
+    endSessionBtn.disabled = true;
+    submitBtn.disabled = true;
+    backBtn.disabled = true;
+    advanceBtn.disabled = true;
   }
-}, 1000); // 1 second grace period
+}
 
-ws.onopen = () => {
-  console.log("Connected");
-  clearTimeout(connectionTimeout);
-  statusEl.className = "status connected";
-  startSessionBtn.disabled = false;
-};
-
-ws.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  console.log("Received:", data);
-
+function handleMessage(data) {
   if (data.type === "state") {
     const { session_id, words, current_word_index, queue } = data.payload;
 
@@ -83,7 +79,7 @@ ws.onmessage = (event) => {
       document.querySelector(".controls").style.display = "none";
     }
   }
-};
+}
 
 function updateCurrentWord(word) {
   currentWordEl.textContent = word;
@@ -136,22 +132,6 @@ function updateAdvanceButton() {
   }
 }
 
-ws.onclose = () => {
-  console.log("Disconnected");
-  if (!isPageUnloading) {
-    statusEl.className = "status disconnected";
-  }
-  startSessionBtn.disabled = true;
-  endSessionBtn.disabled = true;
-  submitBtn.disabled = true;
-  backBtn.disabled = true;
-  advanceBtn.disabled = true;
-};
-
-ws.onerror = (error) => {
-  console.error("WebSocket error:", error);
-};
-
 submitBtn.addEventListener("click", () => {
   const text = textInput.value.trim();
   if (text) {
@@ -161,7 +141,7 @@ submitBtn.addEventListener("click", () => {
         text: text,
       },
     };
-    ws.send(JSON.stringify(message));
+    ws.send(message);
     console.log("Sent:", message);
     textInput.value = "";
   }
@@ -182,7 +162,7 @@ backBtn.addEventListener("click", () => {
       delta: -1,
     },
   };
-  ws.send(JSON.stringify(message));
+  ws.send(message);
   console.log("Sent:", message);
 });
 
@@ -207,7 +187,7 @@ advanceBtn.addEventListener("click", () => {
       },
     };
   }
-  ws.send(JSON.stringify(message));
+  ws.send(message);
   console.log("Sent:", message);
 });
 
@@ -215,7 +195,7 @@ startSessionBtn.addEventListener("click", () => {
   const message = {
     type: "start_session",
   };
-  ws.send(JSON.stringify(message));
+  ws.send(message);
   console.log("Sent:", message);
 });
 
@@ -223,6 +203,6 @@ endSessionBtn.addEventListener("click", () => {
   const message = {
     type: "end_session",
   };
-  ws.send(JSON.stringify(message));
+  ws.send(message);
   console.log("Sent:", message);
 });

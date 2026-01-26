@@ -12,17 +12,28 @@ class ChitaiWebSocket {
    * @param {Object} callbacks - Callback functions for WebSocket events
    * @param {Function} callbacks.onMessage - Called when a message is received (data)
    * @param {Function} callbacks.onStatusChange - Called when connection status changes (isConnected)
+   * @param {Object} options - Configuration options
    * @param {HTMLElement} options.statusElement - Optional status indicator element to manage
+   * @param {boolean} options.autoReconnect - Enable automatic reconnection (default: true)
+   * @param {number} options.reconnectInterval - Base reconnection interval in ms (default: 1000)
+   * @param {number} options.maxReconnectInterval - Maximum reconnection interval in ms (default: 30000)
    */
   constructor(role, callbacks, options = {}) {
     this.role = role;
     this.callbacks = callbacks;
     this.statusElement = options.statusElement;
+    this.autoReconnect = options.autoReconnect ?? true;
+    this.reconnectInterval = options.reconnectInterval ?? 1000;
+    this.maxReconnectInterval = options.maxReconnectInterval ?? 30000;
+
     this.ws = null;
     this.isPageUnloading = false;
     this.connectionTimeout = null;
+    this.reconnectTimeout = null;
+    this.currentReconnectInterval = this.reconnectInterval;
 
     this._setupPageUnloadHandler();
+    this._setupVisibilityChangeHandler();
     this._connect();
   }
 
@@ -33,6 +44,34 @@ class ChitaiWebSocket {
   _setupPageUnloadHandler() {
     window.addEventListener("beforeunload", () => {
       this.isPageUnloading = true;
+    });
+  }
+
+  /**
+   * Setup handler to detect when page becomes visible.
+   * Triggers immediate reconnection if disconnected when user returns to page.
+   */
+  _setupVisibilityChangeHandler() {
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        // Page became visible - if we're disconnected, reconnect immediately
+        if (
+          this.autoReconnect &&
+          (!this.ws || this.ws.readyState !== WebSocket.OPEN)
+        ) {
+          console.log(
+            "Page visible and disconnected - reconnecting immediately",
+          );
+          // Clear any pending reconnect timeout
+          if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+          }
+          // Reset backoff interval for immediate retry
+          this.currentReconnectInterval = this.reconnectInterval;
+          this._connect();
+        }
+      }
     });
   }
 
@@ -67,6 +106,9 @@ class ChitaiWebSocket {
   _handleOpen() {
     console.log("Connected");
     clearTimeout(this.connectionTimeout);
+
+    // Reset reconnection interval on successful connection
+    this.currentReconnectInterval = this.reconnectInterval;
 
     if (this.statusElement) {
       this.statusElement.className = "status connected";
@@ -106,6 +148,11 @@ class ChitaiWebSocket {
     if (this.callbacks.onStatusChange) {
       this.callbacks.onStatusChange(false);
     }
+
+    // Attempt to reconnect if enabled and not unloading
+    if (this.autoReconnect && !this.isPageUnloading) {
+      this._scheduleReconnect();
+    }
   }
 
   /**
@@ -113,6 +160,31 @@ class ChitaiWebSocket {
    */
   _handleError(error) {
     console.error("WebSocket error:", error);
+  }
+
+  /**
+   * Schedule a reconnection attempt with exponential backoff.
+   */
+  _scheduleReconnect() {
+    // Clear any existing reconnect timeout
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+    }
+
+    console.log(
+      `Reconnecting in ${this.currentReconnectInterval / 1000} seconds...`,
+    );
+
+    this.reconnectTimeout = setTimeout(() => {
+      console.log("Attempting to reconnect...");
+      this._connect();
+
+      // Exponential backoff: double the interval for next attempt (up to max)
+      this.currentReconnectInterval = Math.min(
+        this.currentReconnectInterval * 2,
+        this.maxReconnectInterval,
+      );
+    }, this.currentReconnectInterval);
   }
 
   /**
@@ -131,8 +203,16 @@ class ChitaiWebSocket {
 
   /**
    * Close the WebSocket connection.
+   * Disables auto-reconnect to prevent reconnection after manual close.
    */
   close() {
+    this.autoReconnect = false;
+
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
     if (this.ws) {
       this.ws.close();
     }

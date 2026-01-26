@@ -64,12 +64,30 @@ def test_advance_word_clamps_at_start(session):
 
 
 def test_advance_word_clamps_at_end(session):
-    """Test that advancing past last word stays at last word."""
+    """Test that large jumps forward clamp to last word."""
     session.set_text("один два три")
     session.advance_word(10)
     assert session.current_word_index == 2
-    session.advance_word(1)
+
+
+def test_advance_word_marks_completed(session):
+    """Test that advancing from last word marks item as completed."""
+    session.set_text("один два три")
+    session.advance_word(2)
     assert session.current_word_index == 2
+    session.advance_word(1)
+    assert session.current_word_index is None
+
+
+def test_advance_word_cannot_go_back_from_completed(session):
+    """Test that cannot go back from completed state."""
+    session.set_text("один два три")
+    session.advance_word(2)
+    session.advance_word(1)  # Mark as completed
+    assert session.current_word_index is None
+    result = session.advance_word(-1)
+    assert result is False
+    assert session.current_word_index is None
 
 
 def test_advance_word_with_no_text(session):

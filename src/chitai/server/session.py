@@ -26,8 +26,8 @@ class SessionState:
         SessionItem IDs waiting to be displayed. Empty when no items are queued.
     words : list[str]
         Words from the current text. Empty when no text is set.
-    current_word_index : int
-        Index of the currently highlighted word (0-based).
+    current_word_index : int | None
+        Index of the currently highlighted word (0-based). None when item is completed.
 
     """
 
@@ -35,7 +35,7 @@ class SessionState:
     current_session_item_id: str | None = None
     queue: list[str] = field(default_factory=list)
     words: list[str] = field(default_factory=list)
-    current_word_index: int = 0
+    current_word_index: int | None = 0
 
     @property
     def syllables(self) -> list[list[str]]:
@@ -65,7 +65,10 @@ class SessionState:
         logger.info("Text updated: %d words", len(self.words))
 
     def advance_word(self, delta: int) -> bool:
-        """Move to a different word by a given offset (with clamping).
+        """Move to a different word by a given offset.
+
+        When advancing forward from the last word, marks item as completed
+        (current_word_index becomes None). Cannot go back from completed state.
 
         Parameters
         ----------
@@ -86,6 +89,18 @@ class SessionState:
             logger.debug("Delta is 0: no change to word index")
             return False
 
+        # Cannot go back from completed state
+        if self.current_word_index is None:
+            logger.debug("Item completed: cannot go back")
+            return False
+
+        # Advancing forward from last word -> mark as completed
+        if delta > 0 and self.current_word_index == len(self.words) - 1:
+            self.current_word_index = None
+            logger.info("Item marked as completed")
+            return True
+
+        # Normal word navigation with clamping
         new_index = max(0, min(self.current_word_index + delta, len(self.words) - 1))
 
         if new_index != self.current_word_index:

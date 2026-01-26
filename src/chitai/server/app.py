@@ -14,7 +14,6 @@ from chitai.server.websocket.handlers import end_session, handle_message
 from chitai.server.websocket.state import broadcast_state
 from chitai.settings import settings
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

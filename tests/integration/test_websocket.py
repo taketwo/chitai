@@ -124,6 +124,9 @@ async def test_start_session(db_session):
         initial_state = await controller_ws.receive_json()
         assert initial_state["type"] == "state"
         assert initial_state["payload"]["session_id"] is None
+        assert initial_state["payload"]["words"] == []
+        assert initial_state["payload"]["current_word_index"] is None
+        assert initial_state["payload"]["queue"] == []
 
         await controller_ws.send_json({"type": "start_session"})
 
@@ -131,6 +134,9 @@ async def test_start_session(db_session):
         assert data["type"] == "state"
         assert data["payload"]["session_id"] is not None
         session_id = data["payload"]["session_id"]
+        assert data["payload"]["words"] == []
+        assert data["payload"]["current_word_index"] is None
+        assert data["payload"]["queue"] == []
 
         assert app.state.context.session.session_id == session_id
 

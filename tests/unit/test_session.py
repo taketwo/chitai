@@ -17,7 +17,7 @@ def test_initial_state(session):
     assert session.current_session_item_id is None
     assert session.queue == []
     assert session.words == []
-    assert session.current_word_index == 0
+    assert session.current_word_index is None
 
 
 def test_set_text_splits_into_words(session):
@@ -93,9 +93,9 @@ def test_advance_word_cannot_go_back_from_completed(session):
 def test_advance_word_with_no_text(session):
     """Test that advance_word with no text set does nothing."""
     session.advance_word(1)
-    assert session.current_word_index == 0
+    assert session.current_word_index is None
     session.advance_word(-1)
-    assert session.current_word_index == 0
+    assert session.current_word_index is None
 
 
 def test_reset_clears_state(session):
@@ -110,4 +110,4 @@ def test_reset_clears_state(session):
     assert session.current_session_item_id is None
     assert session.queue == []
     assert session.words == []
-    assert session.current_word_index == 0
+    assert session.current_word_index is None

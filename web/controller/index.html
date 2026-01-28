@@ -67,7 +67,7 @@
         ></textarea>
         <div class="button-group">
           <button
-            :disabled="!sessionActive || !textInput.trim()"
+            :disabled="!sessionActive || !textInput.trim() || isCompleted"
             @click="submitToQueue"
           >
             Enqueue

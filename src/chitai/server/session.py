@@ -27,7 +27,8 @@ class SessionState:
     words : list[str]
         Words from the current text. Empty when no text is set.
     current_word_index : int | None
-        Index of the currently highlighted word (0-based). None when item is completed.
+        Index of the currently highlighted word (0-based). None when no item is active
+        or when the current item is completed.
 
     """
 
@@ -35,7 +36,7 @@ class SessionState:
     current_session_item_id: str | None = None
     queue: list[str] = field(default_factory=list)
     words: list[str] = field(default_factory=list)
-    current_word_index: int | None = 0
+    current_word_index: int | None = None
 
     @property
     def syllables(self) -> list[list[str]]:
@@ -116,4 +117,4 @@ class SessionState:
         self.current_session_item_id = None
         self.queue.clear()
         self.words.clear()
-        self.current_word_index = 0
+        self.current_word_index = None

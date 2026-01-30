@@ -217,6 +217,52 @@ class TestItemsEndpoints:
             # SQLite stores without timezone
             assert data["last_used_at"] == "2025-01-02T15:30:00"
 
+    @pytest.mark.asyncio
+    async def test_delete_item(self, db_session: Session):
+        """Test DELETE /api/items/{id} deletes item."""
+        item = create_item(db_session, "удалить")
+
+        async with http_client() as client:
+            response = await client.delete(f"/api/items/{item.id}")
+
+            assert response.status_code == 200
+            assert response.json() == {"status": "deleted"}
+
+            # Verify item is deleted
+            response = await client.get(f"/api/items/{item.id}")
+            assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_delete_item_not_found(self):
+        """Test DELETE /api/items/{id} returns 404 for non-existent item."""
+        async with http_client() as client:
+            response = await client.delete(f"/api/items/{FAKE_UUID}")
+
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Item not found"
+
+    @pytest.mark.asyncio
+    async def test_delete_item_cascades_to_session_items(self, db_session: Session):
+        """Test deleting an item also deletes its session items."""
+        item = create_item(db_session, "каскад")
+        session = create_session(db_session)
+        create_session_item(db_session, session.id, item.id)
+
+        async with http_client() as client:
+            # Verify session has 1 item before deletion
+            response = await client.get(f"/api/sessions/{session.id}")
+            assert response.status_code == 200
+            assert len(response.json()["items"]) == 1
+
+            # Delete the item
+            response = await client.delete(f"/api/items/{item.id}")
+            assert response.status_code == 200
+
+            # Verify session now has 0 items (session_item was cascade deleted)
+            response = await client.get(f"/api/sessions/{session.id}")
+            assert response.status_code == 200
+            assert len(response.json()["items"]) == 0
+
 
 class TestSessionsEndpoints:
     """Tests for /api/sessions endpoints."""
@@ -308,6 +354,48 @@ class TestSessionsEndpoints:
 
             assert response.status_code == 404
             assert response.json()["detail"] == "Session not found"
+
+    @pytest.mark.asyncio
+    async def test_delete_session(self, db_session: Session):
+        """Test DELETE /api/sessions/{id} deletes session."""
+        session = create_session(db_session)
+
+        async with http_client() as client:
+            response = await client.delete(f"/api/sessions/{session.id}")
+
+            assert response.status_code == 200
+            assert response.json() == {"status": "deleted"}
+
+            # Verify session is deleted
+            response = await client.get(f"/api/sessions/{session.id}")
+            assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_delete_session_not_found(self):
+        """Test DELETE /api/sessions/{id} returns 404 for non-existent session."""
+        async with http_client() as client:
+            response = await client.delete(f"/api/sessions/{FAKE_UUID}")
+
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Session not found"
+
+    @pytest.mark.asyncio
+    async def test_delete_session_cascades_to_session_items(self, db_session: Session):
+        """Test deleting a session also deletes its session items."""
+        session = create_session(db_session)
+        item = create_item(db_session, "элемент")
+        create_session_item(db_session, session.id, item.id)
+
+        async with http_client() as client:
+            # Delete the session
+            response = await client.delete(f"/api/sessions/{session.id}")
+            assert response.status_code == 200
+
+            # Verify item still exists but has no usage
+            response = await client.get(f"/api/items/{item.id}")
+            assert response.status_code == 200
+            assert response.json()["usage_count"] == 0
+            assert response.json()["last_used_at"] is None
 
 
 class TestLogsEndpoint:

@@ -109,3 +109,38 @@ async def get_item(
         usage_count=usage_count or 0,
         last_used_at=last_used_at,
     )
+
+
+@router.delete("/{item_id}")
+async def delete_item(
+    item_id: str, db: Annotated[Session, Depends(get_session)]
+) -> dict[str, str]:
+    """Delete an item and all its associated session items.
+
+    Parameters
+    ----------
+    item_id : str
+        Item UUID
+    db : Session
+        Database session (injected)
+
+    Returns
+    -------
+    dict[str, str]
+        Success status
+
+    Raises
+    ------
+    HTTPException
+        404 if item not found
+
+    """
+    item = db.get(Item, item_id)
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    db.delete(item)
+    db.commit()
+
+    return {"status": "deleted"}

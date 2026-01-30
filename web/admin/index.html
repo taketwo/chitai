@@ -43,20 +43,18 @@
             <thead>
               <tr>
                 <th>Text</th>
-                <th>Language</th>
-                <th>Created At</th>
                 <th>Usage Count</th>
                 <th>Last Used At</th>
+                <th>Created At</th>
               </tr>
             </thead>
             <tbody>
               <template x-for="item in items" :key="item.id">
                 <tr>
                   <td x-text="item.text"></td>
-                  <td x-text="item.language"></td>
-                  <td x-text="formatDate(item.created_at)"></td>
                   <td x-text="item.usage_count"></td>
                   <td x-text="formatDate(item.last_used_at)"></td>
+                  <td x-text="formatDate(item.created_at)"></td>
                 </tr>
               </template>
             </tbody>

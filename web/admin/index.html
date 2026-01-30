@@ -19,13 +19,13 @@
       <!-- Tab Navigation -->
       <nav class="tabs">
         <button
-          @click="currentTab = 'items'"
+          @click="setTab('items')"
           :class="{ active: currentTab === 'items' }"
         >
           Items
         </button>
         <button
-          @click="currentTab = 'sessions'"
+          @click="setTab('sessions')"
           :class="{ active: currentTab === 'sessions' }"
         >
           Sessions

@@ -46,6 +46,7 @@
                 <th>Usage Count</th>
                 <th>Last Used At</th>
                 <th>Created At</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -55,6 +56,17 @@
                   <td x-text="item.usage_count"></td>
                   <td x-text="formatDate(item.last_used_at)"></td>
                   <td x-text="formatDate(item.created_at)"></td>
+                  <td class="delete-cell">
+                    <button
+                      class="delete-btn"
+                      @click="deleteItem(item.id)"
+                      title="Delete item"
+                    >
+                      <svg class="icon">
+                        <use href="/web/icons.svg#trash"></use>
+                      </svg>
+                    </button>
+                  </td>
                 </tr>
               </template>
             </tbody>
@@ -75,6 +87,7 @@
                 <th>Date</th>
                 <th>Duration</th>
                 <th>Item Count</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -85,6 +98,17 @@
                     x-text="formatDuration(session.started_at, session.ended_at)"
                   ></td>
                   <td x-text="session.item_count"></td>
+                  <td class="delete-cell">
+                    <button
+                      class="delete-btn"
+                      @click="deleteSession(session.id)"
+                      title="Delete session"
+                    >
+                      <svg class="icon">
+                        <use href="/web/icons.svg#trash"></use>
+                      </svg>
+                    </button>
+                  </td>
                 </tr>
               </template>
             </tbody>

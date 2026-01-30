@@ -96,5 +96,54 @@ function adminApp() {
     shortenId(id) {
       return id.substring(0, 8);
     },
+
+    async handleDelete(url, resourceType) {
+      try {
+        const response = await fetch(url, { method: "DELETE" });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.error(`Failed to delete ${resourceType}:`, error);
+          alert(`Failed to delete ${resourceType}. See console for details.`);
+        }
+
+        return response.ok;
+      } catch (error) {
+        console.error(`Failed to delete ${resourceType}:`, error);
+        alert(`Failed to delete ${resourceType}. See console for details.`);
+        return false;
+      }
+    },
+
+    async deleteItem(itemId) {
+      if (
+        !confirm(
+          "Delete this item? This will also remove it from all session histories.",
+        )
+      ) {
+        return;
+      }
+
+      const success = await this.handleDelete(`/api/items/${itemId}`, "item");
+      if (success) {
+        this.items = this.items.filter((item) => item.id !== itemId);
+      }
+    },
+
+    async deleteSession(sessionId) {
+      if (!confirm("Delete this session?")) {
+        return;
+      }
+
+      const success = await this.handleDelete(
+        `/api/sessions/${sessionId}`,
+        "session",
+      );
+      if (success) {
+        this.sessions = this.sessions.filter(
+          (session) => session.id !== sessionId,
+        );
+      }
+    },
   };
 }

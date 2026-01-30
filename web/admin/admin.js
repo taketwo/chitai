@@ -58,6 +58,26 @@ function adminApp() {
       return `${month} ${day}, ${hours}:${minutes}`;
     },
 
+    formatDuration(startedAt, endedAt) {
+      if (!startedAt || !endedAt) {
+        return "—";
+      }
+      const start = new Date(startedAt);
+      const end = new Date(endedAt);
+      const durationMs = end - start;
+      const durationMinutes = Math.floor(durationMs / 60000);
+
+      if (durationMinutes < 1) {
+        return "< 1 min";
+      } else if (durationMinutes < 60) {
+        return `${durationMinutes} min`;
+      } else {
+        const hours = Math.floor(durationMinutes / 60);
+        const minutes = durationMinutes % 60;
+        return minutes > 0 ? `${hours}h ${minutes}min` : `${hours}h`;
+      }
+    },
+
     shortenId(id) {
       return id.substring(0, 8);
     },

@@ -122,3 +122,38 @@ async def get_session_detail(
         ended_at=session.ended_at,
         items=items,
     )
+
+
+@router.delete("/{session_id}")
+async def delete_session(
+    session_id: str, db: Annotated[Session, Depends(get_session)]
+) -> dict[str, str]:
+    """Delete a session and all its associated session items.
+
+    Parameters
+    ----------
+    session_id : str
+        Session UUID
+    db : Session
+        Database session (injected)
+
+    Returns
+    -------
+    dict[str, str]
+        Success status
+
+    Raises
+    ------
+    HTTPException
+        404 if session not found
+
+    """
+    session = db.get(DBSession, session_id)
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    db.delete(session)
+    db.commit()
+
+    return {"status": "deleted"}

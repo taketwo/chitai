@@ -74,20 +74,18 @@
           <table>
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Language</th>
-                <th>Started At</th>
-                <th>Ended At</th>
+                <th>Date</th>
+                <th>Duration</th>
                 <th>Item Count</th>
               </tr>
             </thead>
             <tbody>
               <template x-for="session in sessions" :key="session.id">
                 <tr>
-                  <td x-text="shortenId(session.id)"></td>
-                  <td x-text="session.language"></td>
                   <td x-text="formatDate(session.started_at)"></td>
-                  <td x-text="formatDate(session.ended_at)"></td>
+                  <td
+                    x-text="formatDuration(session.started_at, session.ended_at)"
+                  ></td>
                   <td x-text="session.item_count"></td>
                 </tr>
               </template>

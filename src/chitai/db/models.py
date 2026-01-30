@@ -61,7 +61,7 @@ class Item(Base):
 
     # Relationships
     session_items: Mapped[list[SessionItem]] = relationship(
-        "SessionItem", back_populates="item"
+        "SessionItem", back_populates="item", cascade="all, delete-orphan"
     )
 
 

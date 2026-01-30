@@ -8,8 +8,23 @@ function adminApp() {
     sessions: [],
 
     async init() {
+      this.loadTabFromHash();
+      window.addEventListener("hashchange", () => this.loadTabFromHash());
       await this.fetchItems();
       await this.fetchSessions();
+    },
+
+    loadTabFromHash() {
+      const hash = window.location.hash.slice(1);
+      if (hash === "items" || hash === "sessions") {
+        this.currentTab = hash;
+      } else {
+        this.currentTab = "items";
+      }
+    },
+
+    setTab(tab) {
+      window.location.hash = tab;
     },
 
     async fetchItems() {

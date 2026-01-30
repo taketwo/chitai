@@ -21,7 +21,15 @@
       <div x-ref="status" class="status"></div>
 
       <div class="container">
-        <div id="textDisplay">
+        <div
+          id="textDisplay"
+          :class="{
+            'slide-out-vertical': slideState === 'out-vertical',
+            'slide-in-vertical': slideState === 'in-vertical',
+            'slide-out-horizontal': slideState === 'out-horizontal',
+            'slide-in-horizontal': slideState === 'in-horizontal'
+          }"
+        >
           <template x-if="!hasWords">
             <span class="placeholder"></span>
           </template>

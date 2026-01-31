@@ -1,12 +1,17 @@
 function displayApp() {
   return {
+    // State
     words: [],
     syllables: [],
     currentWordIndex: null,
+    ws: null,
+
+    // Display settings
     showSyllables: true,
     dimReadWords: true,
     dimFutureWords: false,
-    ws: null,
+
+    // Animation state
     slideState: null,
     animationId: 0,
     slideDirection: "vertical",
@@ -22,7 +27,6 @@ function displayApp() {
         },
       );
 
-      // Determine slide direction based on viewport
       this.updateSlideDirection();
       window.addEventListener("resize", () => this.updateSlideDirection());
     },
@@ -35,6 +39,26 @@ function displayApp() {
       return this.currentWordIndex === null;
     },
 
+    handleMessage(data) {
+      if (data.type === "state") {
+        const { words, syllables, current_word_index } = data.payload;
+
+        const newIndex = current_word_index ?? null;
+
+        // Detect new item: transition from completed (null) to first word (0)
+        const newItemStarted = this.currentWordIndex === null && newIndex === 0;
+
+        if (newItemStarted) {
+          this.animateTextChange(words, syllables, newIndex);
+        } else {
+          // Just word navigation or completion, update state directly
+          this.words = words ?? [];
+          this.syllables = syllables ?? [];
+          this.currentWordIndex = newIndex;
+        }
+      }
+    },
+
     updateSlideDirection() {
       // Slide across the shorter dimension
       this.slideDirection =
@@ -42,10 +66,12 @@ function displayApp() {
     },
 
     async animateTextChange(words, syllables, currentWordIndex) {
-      const currentAnimationId = ++this.animationId;
+      this.animationId += 1;
+      const currentAnimationId = this.animationId;
       const isCurrentAnimation = () => currentAnimationId === this.animationId;
 
       const textDisplay = document.getElementById("textDisplay");
+      if (!textDisplay) return;
 
       // Wait for CSS transition to complete
       const waitForTransition = () =>
@@ -66,17 +92,17 @@ function displayApp() {
       if (!isCurrentAnimation()) return;
 
       // Update content while off-screen (no highlight yet)
-      this.words = words || [];
-      this.syllables = syllables || [];
+      this.words = words ?? [];
+      this.syllables = syllables ?? [];
       this.currentWordIndex = null;
 
       // Position for slide-in start (off-screen, opposite side)
-      // Use nextTick to ensure Alpine applies the class before we force reflow
       this.slideState = `in-${this.slideDirection}`;
       await this.$nextTick();
 
-      // Force reflow so browser registers position before transitioning
-      void textDisplay.offsetHeight;
+      // Force reflow to register position before transition
+      // eslint-disable-next-line no-unused-expressions
+      textDisplay.offsetHeight;
 
       // Slide in (transition back to neutral position)
       this.slideState = null;
@@ -85,29 +111,7 @@ function displayApp() {
       if (!isCurrentAnimation()) return;
 
       // Apply highlight after text has settled
-      this.currentWordIndex =
-        currentWordIndex !== undefined ? currentWordIndex : null;
-    },
-
-    handleMessage(data) {
-      if (data.type === "state") {
-        const { words, syllables, current_word_index } = data.payload;
-
-        const newIndex =
-          current_word_index !== undefined ? current_word_index : null;
-
-        // Detect new item: transition from completed (null) to first word (0)
-        const newItemStarted = this.currentWordIndex === null && newIndex === 0;
-
-        if (newItemStarted) {
-          this.animateTextChange(words, syllables, current_word_index);
-        } else {
-          // Just word navigation or completion, update state directly
-          this.words = words || [];
-          this.syllables = syllables || [];
-          this.currentWordIndex = newIndex;
-        }
-      }
+      this.currentWordIndex = currentWordIndex ?? null;
     },
   };
 }

@@ -20,64 +20,85 @@
     <div class="container" x-data="controllerApp()" x-init="init()">
       <div x-ref="status" class="status"></div>
 
-      <div class="session-controls">
-        <button
-          x-show="!sessionActive"
-          :disabled="!connected"
-          @click="startSession"
-        >
+      <!-- Session not started: just show start button -->
+      <div class="session-start" x-show="!sessionActive">
+        <button :disabled="!connected" @click="startSession">
           Start session
         </button>
-        <button
-          x-show="sessionActive"
-          :disabled="!connected"
-          @click="endSession"
-        >
-          End session
-        </button>
       </div>
 
-      <div class="controls" x-show="hasWords">
-        <button
-          class="back-btn"
-          :disabled="!sessionActive || isCompleted"
-          @click="advanceWord(-1)"
-        >
-          ←
-        </button>
-        <div
-          x-ref="currentWord"
-          class="current-word"
-          x-text="currentWord"
-        ></div>
-        <button
-          class="advance-btn"
-          :class="{ 'next-item': isNextItemMode }"
-          :disabled="!sessionActive || (isCompleted && queue.length === 0)"
-          @click="advance"
-          x-text="advanceButtonLabel"
-        ></button>
-      </div>
+      <!-- Session active: show everything -->
+      <div x-show="sessionActive">
+        <div class="item-panel controls" x-show="hasWords">
+          <button
+            class="back-btn"
+            :disabled="!sessionActive || isCompleted"
+            @click="advanceWord(-1)"
+          >
+            <svg class="icon">
+              <use href="/web/icons.svg#arrow-uturn-left"></use>
+            </svg>
+          </button>
+          <div
+            x-ref="currentWord"
+            class="current-word"
+            :class="{ 'completed': isCompleted }"
+            x-text="currentWord"
+          ></div>
+          <button
+            class="advance-btn"
+            :class="{ 'next-item': isNextItemMode }"
+            :disabled="!sessionActive || (isCompleted && queue.length === 0)"
+            @click="advance"
+          >
+            <svg class="icon">
+              <use :href="'/web/icons.svg#' + advanceButtonIcon"></use>
+            </svg>
+          </button>
+        </div>
 
-      <div class="input-group">
-        <textarea
-          x-model="textInput"
-          placeholder="Enter text..."
-          @keydown.enter.prevent="handleEnter"
-        ></textarea>
-        <div class="button-group">
-          <button
-            :disabled="!sessionActive || !textInput.trim() || isCompleted"
-            @click="submitToQueue"
-          >
-            Enqueue
-          </button>
-          <button
-            :disabled="!sessionActive || !textInput.trim() || !isCompleted"
-            @click="submitAndShow"
-          >
-            Show
-          </button>
+        <div class="queue-items" x-show="queue.length > 0">
+          <template x-for="item in queue" :key="item.session_item_id">
+            <div class="item-panel queue-item">
+              <div class="drag-handle">
+                <svg class="icon">
+                  <use href="/web/icons.svg#pause"></use>
+                </svg>
+              </div>
+              <div class="queue-item-text" x-text="item.text"></div>
+            </div>
+          </template>
+        </div>
+
+        <div class="input-group">
+          <textarea
+            x-model="textInput"
+            placeholder="Enter text..."
+            @keydown.enter.prevent="handleEnter"
+          ></textarea>
+          <div class="button-group">
+            <button
+              class="end-session-btn"
+              :disabled="!connected"
+              @click="endSession"
+            >
+              <svg class="icon">
+                <use href="/web/icons.svg#arrow-left-start-on-rectangle"></use>
+              </svg>
+            </button>
+            <button
+              :disabled="!sessionActive || !textInput.trim()"
+              @click="submitToQueue"
+            >
+              Enqueue
+            </button>
+            <button
+              :disabled="!sessionActive || !textInput.trim() || !isCompleted || queue.length > 0"
+              @click="submitAndShow"
+            >
+              Show
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -2,7 +2,9 @@ function controllerApp() {
   return {
     connected: false,
     sessionActive: false,
+    sessionLanguage: null,
     textInput: "",
+    suggestions: [],
     words: [],
     currentWordIndex: null,
     queue: [],
@@ -70,12 +72,14 @@ function controllerApp() {
 
     handleMessage(data) {
       if (data.type === "state") {
-        const { session_id, words, current_word_index, queue } = data.payload;
+        const { session_id, language, words, current_word_index, queue } =
+          data.payload;
 
         this.words = words ?? [];
         this.currentWordIndex = current_word_index ?? null;
         this.queue = queue ?? [];
         this.sessionActive = session_id !== null;
+        this.sessionLanguage = language ?? null;
       }
     },
 
@@ -126,6 +130,7 @@ function controllerApp() {
       this.ws.send({ type: "add_item", payload: { text } });
       this.ws.send({ type: "next_item" });
       this.textInput = "";
+      this.suggestions = [];
     },
 
     submitToQueue() {
@@ -134,6 +139,7 @@ function controllerApp() {
 
       this.ws.send({ type: "add_item", payload: { text } });
       this.textInput = "";
+      this.suggestions = [];
     },
 
     handleEnter(event) {
@@ -160,6 +166,48 @@ function controllerApp() {
 
     endSession() {
       this.ws.send({ type: "end_session" });
+    },
+
+    async fetchSuggestions() {
+      const text = this.textInput.trim();
+
+      // Clear suggestions if text is too short
+      if (text.length < 3) {
+        this.suggestions = [];
+        return;
+      }
+
+      // Need session language for autocomplete
+      if (!this.sessionLanguage) {
+        this.suggestions = [];
+        return;
+      }
+
+      try {
+        const params = new URLSearchParams({
+          text: text,
+          language: this.sessionLanguage,
+          limit: "3",
+        });
+
+        const response = await fetch(`/api/items/autocomplete?${params}`);
+        if (!response.ok) {
+          console.warn("Autocomplete request failed:", response.status);
+          this.suggestions = [];
+          return;
+        }
+
+        const data = await response.json();
+        this.suggestions = data.suggestions || [];
+      } catch (error) {
+        console.error("Autocomplete error:", error);
+        this.suggestions = [];
+      }
+    },
+
+    selectSuggestion(text) {
+      this.textInput = text;
+      this.suggestions = [];
     },
   };
 }

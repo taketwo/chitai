@@ -71,11 +71,28 @@
         </div>
 
         <div class="input-group">
-          <textarea
-            x-model="textInput"
-            placeholder="Enter text..."
-            @keydown.enter.prevent="handleEnter"
-          ></textarea>
+          <div class="input-wrapper">
+            <textarea
+              x-model="textInput"
+              placeholder="Enter text..."
+              @keydown.enter.prevent="handleEnter"
+              @input.debounce.200ms="fetchSuggestions()"
+              @blur="suggestions = []"
+            ></textarea>
+            <div
+              class="autocomplete-suggestions"
+              x-show="suggestions.length > 0"
+            >
+              <template x-for="suggestion in suggestions" :key="suggestion.id">
+                <button
+                  type="button"
+                  class="autocomplete-suggestion"
+                  @mousedown.prevent="selectSuggestion(suggestion.text)"
+                  x-text="suggestion.text"
+                ></button>
+              </template>
+            </div>
+          </div>
           <div class="button-group">
             <button
               class="end-session-btn"

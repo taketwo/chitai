@@ -18,6 +18,7 @@ class StatePayload(BaseModel):
     """Payload for state message."""
 
     session_id: str | None
+    language: str | None
     words: list[str]
     syllables: list[list[str]]
     current_word_index: int | None

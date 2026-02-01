@@ -69,9 +69,11 @@ async def start_session(session_state: SessionState, clients: set[WebSocket]) ->
         db_session.add(db_session_obj)
         db_session.commit()
         session_id = db_session_obj.id
+        language = db_session_obj.language
 
     session_state.session_id = session_id
-    logger.info("Session started: %s", session_id)
+    session_state.language = language
+    logger.info("Session started: %s (language: %s)", session_id, language)
 
     await broadcast_state(session_state, clients)
 

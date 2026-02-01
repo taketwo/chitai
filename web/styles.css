@@ -111,6 +111,10 @@ body.controller {
   box-shadow: var(--shadow);
 }
 
+.controller .input-wrapper {
+  position: relative;
+}
+
 .controller textarea {
   width: 100%;
   padding: 12px;
@@ -125,6 +129,48 @@ body.controller {
 .controller textarea:focus {
   outline: none;
   border-color: var(--color-primary);
+}
+
+.controller .autocomplete-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: var(--color-white);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  z-index: 10;
+}
+
+.controller .autocomplete-suggestion {
+  width: 100%;
+  padding: 12px;
+  font-size: 18px;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.2s;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+}
+
+.controller .autocomplete-suggestion:last-child {
+  border-bottom: none;
+}
+
+.controller .autocomplete-suggestion:hover {
+  background: var(--color-gray-light);
+}
+
+.controller .autocomplete-suggestion:active {
+  background: var(--color-gray-medium);
 }
 
 .controller .button-group {

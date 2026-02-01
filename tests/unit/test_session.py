@@ -14,6 +14,7 @@ def session():
 def test_initial_state(session):
     """Test that SessionState initializes with empty state."""
     assert session.session_id is None
+    assert session.language is None
     assert session.current_session_item_id is None
     assert session.queue == []
     assert session.words == []
@@ -101,12 +102,14 @@ def test_advance_word_with_no_text(session):
 def test_reset_clears_state(session):
     """Test that reset clears all state."""
     session.session_id = "test-session-id"
+    session.language = "ru"
     session.current_session_item_id = "test-session-item-id"
     session.queue = ["queued-item-1", "queued-item-2"]
     session.words = ["один", "два"]
     session.current_word_index = 1
     session.reset()
     assert session.session_id is None
+    assert session.language is None
     assert session.current_session_item_id is None
     assert session.queue == []
     assert session.words == []

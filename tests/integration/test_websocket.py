@@ -124,6 +124,7 @@ async def test_start_session(db_session):
         initial_state = await controller_ws.receive_json()
         assert initial_state["type"] == "state"
         assert initial_state["payload"]["session_id"] is None
+        assert initial_state["payload"]["language"] is None
         assert initial_state["payload"]["words"] == []
         assert initial_state["payload"]["current_word_index"] is None
         assert initial_state["payload"]["queue"] == []
@@ -133,6 +134,7 @@ async def test_start_session(db_session):
         data = await controller_ws.receive_json()
         assert data["type"] == "state"
         assert data["payload"]["session_id"] is not None
+        assert data["payload"]["language"] == "ru"
         session_id = data["payload"]["session_id"]
         assert data["payload"]["words"] == []
         assert data["payload"]["current_word_index"] is None
@@ -160,6 +162,7 @@ async def test_end_session(db_session):
         data = await controller_ws.receive_json()
         assert data["type"] == "state"
         assert data["payload"]["session_id"] is None
+        assert data["payload"]["language"] is None
         assert app.state.context.session.session_id is None
 
         db_session_obj = db_session.get(DBSession, session_id)
@@ -489,11 +492,13 @@ async def test_add_item_with_missing_database_session_resets_state(db_session):
         controller_data = await controller_ws.receive_json()
         assert controller_data["type"] == "state"
         assert controller_data["payload"]["session_id"] is None
+        assert controller_data["payload"]["language"] is None
         assert controller_data["payload"]["words"] == []
 
         display_data = await display_ws.receive_json()
         assert display_data["type"] == "state"
         assert display_data["payload"]["session_id"] is None
+        assert display_data["payload"]["language"] is None
 
         # Verify in-memory state was reset
         assert app.state.context.session.session_id is None
@@ -718,6 +723,7 @@ async def test_complete_session_flow_end_to_end(db_session):  # noqa: PLR0915
         state = await controller_ws.receive_json()
 
         assert state["payload"]["session_id"] is None
+        assert state["payload"]["language"] is None
         assert app.state.context.session.session_id is None
 
     # Verify database state

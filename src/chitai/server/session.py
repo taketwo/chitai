@@ -20,6 +20,8 @@ class SessionState:
     ----------
     session_id : str | None
         Database session ID. None when no session is active.
+    language : str | None
+        Session language. None when no session is active.
     current_session_item_id : str | None
         ID of the SessionItem currently being displayed. None when no item is displayed.
     queue : list[str]
@@ -33,6 +35,7 @@ class SessionState:
     """
 
     session_id: str | None = None
+    language: str | None = None
     current_session_item_id: str | None = None
     queue: list[str] = field(default_factory=list)
     words: list[str] = field(default_factory=list)
@@ -114,6 +117,7 @@ class SessionState:
     def reset(self) -> None:
         """Reset all session state to initial values."""
         self.session_id = None
+        self.language = None
         self.current_session_item_id = None
         self.queue.clear()
         self.words.clear()

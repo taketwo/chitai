@@ -62,6 +62,7 @@ def build_state_payload(session_state: SessionState) -> StatePayload:
 
     return StatePayload(
         session_id=session_state.session_id,
+        language=session_state.language,
         words=session_state.words,
         syllables=session_state.syllables,
         current_word_index=session_state.current_word_index,

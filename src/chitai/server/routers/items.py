@@ -7,8 +7,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session  # noqa: TC002
 
 from chitai.db.engine import get_session
-from chitai.db.models import Item, SessionItem
-from chitai.server.routers.schemas import ItemListResponse, ItemResponse
+from chitai.db.models import Item, Language, SessionItem
+from chitai.server.routers.schemas import (
+    AutocompleteResponse,
+    AutocompleteSuggestion,
+    ItemListResponse,
+    ItemResponse,
+)
 
 router = APIRouter(prefix="/api/items", tags=["items"])
 
@@ -57,6 +62,55 @@ async def list_items(db: Annotated[Session, Depends(get_session)]) -> ItemListRe
     ]
 
     return ItemListResponse(items=items)
+
+
+@router.get("/autocomplete", response_model=AutocompleteResponse)
+async def autocomplete_items(
+    text: str,
+    language: Language,
+    limit: int = 3,
+    *,
+    db: Annotated[Session, Depends(get_session)],
+) -> AutocompleteResponse:
+    """Autocomplete item text based on prefix match.
+
+    Returns items matching the given text prefix, ordered alphabetically. Used for quick
+    text entry assistance in the controller UI.
+
+    Parameters
+    ----------
+    text : str
+        Text prefix to match
+    language : Language
+        Language to filter by (ru, de, en)
+    limit : int, optional
+        Maximum number of suggestions to return (default 3)
+    db : Session
+        Database session (injected)
+
+    Returns
+    -------
+    AutocompleteResponse
+        List of matching items (id and text only)
+
+    """
+    # Simple prefix match query - no joins needed for fast autocomplete
+    query = (
+        select(Item.id, Item.text)
+        .where(Item.text.like(f"{text}%"))
+        .where(Item.language == language)
+        .order_by(Item.text)
+        .limit(limit)
+    )
+
+    results = db.execute(query).all()
+
+    suggestions = [
+        AutocompleteSuggestion(id=str(item_id), text=item_text)
+        for item_id, item_text in results
+    ]
+
+    return AutocompleteResponse(suggestions=suggestions)
 
 
 @router.get("/{item_id}", response_model=ItemResponse)

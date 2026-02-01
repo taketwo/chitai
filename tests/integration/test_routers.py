@@ -398,6 +398,162 @@ class TestSessionsEndpoints:
             assert response.json()["last_used_at"] is None
 
 
+class TestItemsAutocompleteEndpoint:
+    """Tests for /api/items/autocomplete endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_autocomplete_basic_match(self, db_session: Session):
+        """Test autocomplete returns matching items."""
+        # Create items with similar prefixes
+        create_item(db_session, "черепаха")
+        create_item(db_session, "черепаховый")
+        create_item(db_session, "черешня")
+        create_item(db_session, "молоко")  # Different prefix
+
+        async with http_client() as client:
+            response = await client.get(
+                "/api/items/autocomplete", params={"text": "чере", "language": "ru"}
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["suggestions"]) == 3
+
+            # Should be ordered alphabetically
+            texts = [item["text"] for item in data["suggestions"]]
+            assert texts == ["черепаха", "черепаховый", "черешня"]
+
+    @pytest.mark.asyncio
+    async def test_autocomplete_respects_limit(self, db_session: Session):
+        """Test autocomplete respects limit parameter."""
+        create_item(db_session, "тест1")  # noqa: RUF001
+        create_item(db_session, "тест2")  # noqa: RUF001
+        create_item(db_session, "тест3")  # noqa: RUF001
+        create_item(db_session, "тест4")  # noqa: RUF001
+
+        async with http_client() as client:
+            response = await client.get(
+                "/api/items/autocomplete",
+                params={"text": "тест", "language": "ru", "limit": 2},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["suggestions"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_autocomplete_respects_large_limit(self, db_session: Session):
+        """Test autocomplete respects large limit values."""
+        # Create 15 items
+        for i in range(15):
+            create_item(db_session, f"тест{i:02d}")
+
+        async with http_client() as client:
+            response = await client.get(
+                "/api/items/autocomplete",
+                params={"text": "тест", "language": "ru", "limit": 20},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            # Should return all 15 items since we asked for 20
+            assert len(data["suggestions"]) == 15
+
+    @pytest.mark.asyncio
+    async def test_autocomplete_filters_by_language(self, db_session: Session):
+        """Test autocomplete filters by language."""
+        # Create Russian item
+        russian_item = Item(text="черепаха", language="ru")
+        db_session.add(russian_item)
+
+        # Create German item with same prefix (if it existed)
+        german_item = Item(text="черныйхлеб", language="de")
+        db_session.add(german_item)
+
+        db_session.commit()
+
+        async with http_client() as client:
+            # Query for Russian
+            response = await client.get(
+                "/api/items/autocomplete", params={"text": "чер", "language": "ru"}
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["suggestions"]) == 1
+            assert data["suggestions"][0]["text"] == "черепаха"
+
+            # Query for German
+            response = await client.get(
+                "/api/items/autocomplete", params={"text": "чер", "language": "de"}
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["suggestions"]) == 1
+            assert data["suggestions"][0]["text"] == "черныйхлеб"
+
+    @pytest.mark.asyncio
+    async def test_autocomplete_case_sensitive(self, db_session: Session):
+        """Test autocomplete is case-sensitive."""
+        create_item(db_session, "Тест")
+        create_item(db_session, "тест")
+
+        async with http_client() as client:
+            # Lowercase query should only match lowercase item
+            response = await client.get(
+                "/api/items/autocomplete", params={"text": "тес", "language": "ru"}
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["suggestions"]) == 1
+            assert data["suggestions"][0]["text"] == "тест"
+
+            # Uppercase query should only match uppercase item
+            response = await client.get(
+                "/api/items/autocomplete",
+                params={"text": "Тес", "language": "ru"},  # noqa: RUF001
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["suggestions"]) == 1
+            assert data["suggestions"][0]["text"] == "Тест"
+
+    @pytest.mark.asyncio
+    async def test_autocomplete_no_matches(self, db_session: Session):
+        """Test autocomplete returns empty list when no matches."""
+        create_item(db_session, "молоко")
+
+        async with http_client() as client:
+            response = await client.get(
+                "/api/items/autocomplete", params={"text": "хле", "language": "ru"}
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["suggestions"] == []
+
+    @pytest.mark.asyncio
+    async def test_autocomplete_returns_minimal_fields(self, db_session: Session):
+        """Test autocomplete only returns id and text, not usage stats."""
+        item = create_item(db_session, "проверка")
+        session = create_session(db_session)
+        create_session_item(db_session, session.id, item.id)
+
+        async with http_client() as client:
+            response = await client.get(
+                "/api/items/autocomplete", params={"text": "про", "language": "ru"}
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["suggestions"]) == 1
+
+            # Should only have id and text
+            suggestion = data["suggestions"][0]
+            assert set(suggestion.keys()) == {"id", "text"}
+            assert suggestion["id"] == str(item.id)
+            assert suggestion["text"] == "проверка"
+
+
 class TestLogsEndpoint:
     """Tests for /api/logs endpoint."""
 

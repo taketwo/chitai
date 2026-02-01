@@ -145,6 +145,37 @@ class SessionDetailResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class AutocompleteSuggestion(BaseModel):
+    """Autocomplete suggestion for an item.
+
+    Attributes
+    ----------
+    id : str
+        Item UUID
+    text : str
+        The item text
+
+    """
+
+    id: str
+    text: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AutocompleteResponse(BaseModel):
+    """Response schema for autocomplete suggestions.
+
+    Attributes
+    ----------
+    suggestions : list[AutocompleteSuggestion]
+        List of matching items
+
+    """
+
+    suggestions: list[AutocompleteSuggestion]
+
+
 class LogMessage(BaseModel):
     """Frontend log message.
 

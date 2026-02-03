@@ -93,7 +93,6 @@ async def end_session(
         Connected clients to broadcast to
     ended_at : datetime | None
         Optional timestamp for when session ended. If None, uses current time.
-        Used when grace period expires to record actual disconnect time.
 
     """
     if session_state.session_id is None:

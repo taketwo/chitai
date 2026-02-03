@@ -48,8 +48,9 @@ class ChitaiWebSocket {
   }
 
   /**
-   * Setup handler to detect when page becomes visible.
-   * Triggers immediate reconnection if disconnected when user returns to page.
+   * Setup handler to manage connection lifecycle on visibility changes.
+   * Closes connection proactively when hidden to avoid unpredictable
+   * browser throttling. Reconnects immediately when page becomes visible.
    */
   _setupVisibilityChangeHandler() {
     document.addEventListener("visibilitychange", () => {
@@ -71,6 +72,20 @@ class ChitaiWebSocket {
           this.currentReconnectInterval = this.reconnectInterval;
           this._connect();
         }
+      } else {
+        // Page hidden - close connection proactively. Background tabs get
+        // throttled by the browser, which kills pong responses and causes
+        // noisy keepalive timeouts on the server. Closing here lets us
+        // reconnect cleanly on visibility restore instead.
+        if (this.reconnectTimeout) {
+          clearTimeout(this.reconnectTimeout);
+          this.reconnectTimeout = null;
+        }
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          console.log("Page hidden - closing connection");
+          this.ws.onclose = null;
+          this.ws.close();
+        }
       }
     });
   }
@@ -79,6 +94,14 @@ class ChitaiWebSocket {
    * Establish WebSocket connection.
    */
   _connect() {
+    // Close any existing connection before opening a new one.
+    // This prevents duplicate connections when visibilitychange and a pending
+    // reconnect timeout race to call _connect().
+    if (this.ws) {
+      this.ws.onclose = null;
+      this.ws.close();
+    }
+
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const url = `${protocol}//${window.location.host}/ws?role=${this.role}`;
 

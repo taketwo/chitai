@@ -1,42 +1,64 @@
 """FastAPI application entry point."""
 
-import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
+from chitai.server.grace_timer import GraceTimer
 from chitai.server.routers import items_router, logs_router, sessions_router
 from chitai.server.session import SessionState
 from chitai.server.websocket.handlers import end_session, handle_message
 from chitai.server.websocket.state import broadcast_state
 from chitai.settings import settings
 
+if TYPE_CHECKING:
+    from datetime import datetime
+
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class AppStateContext:
-    """Server state that persists across WebSocket connections."""
-
-    session: SessionState = field(default_factory=SessionState)
-    clients: set[WebSocket] = field(default_factory=set)
-    grace_period_seconds: int = settings.grace_period_seconds
-    disconnect_time: datetime | None = None
-    grace_timer_task: asyncio.Task[None] | None = None
-
-    @property
-    def has_active_grace_timer(self) -> bool:
-        """Check if grace period timer is currently running."""
-        return self.grace_timer_task is not None and not self.grace_timer_task.done()
 
 
 app = FastAPI(title="Chitai")
 
+
+@dataclass
+class AppStateContext:
+    """Typed container for global application state.
+
+    This is a pure data holder for server infrastructure that persists across WebSocket
+    connections. It exists to provide typed access to global state that would otherwise
+    be scattered or untyped.
+
+    Design constraints:
+    - No methods (except trivial property accessors) — logic belongs elsewhere
+    - Never pass this object as a whole to functions; pass individual fields explicitly
+      to keep APIs clear about their dependencies
+
+    """
+
+    session: SessionState = field(default_factory=SessionState)
+    clients: set[WebSocket] = field(default_factory=set)
+    grace_timer: GraceTimer = field(default=None)  # type: ignore[assignment]
+
+
+async def _on_grace_timer_expire(ended_at: datetime) -> None:
+    """Auto-end the session on grace timer expire."""
+    await end_session(
+        app.state.context.session,
+        app.state.context.clients,
+        ended_at=ended_at,
+    )
+
+
 # Initialize application state
-app.state.context = AppStateContext()
+app.state.context = AppStateContext(
+    grace_timer=GraceTimer(
+        grace_period_seconds=settings.grace_period_seconds,
+        on_expire=_on_grace_timer_expire,
+    ),
+)
 
 # Include REST API routers
 app.include_router(items_router)
@@ -51,35 +73,6 @@ app.mount("/web", StaticFiles(directory="web", html=True), name="web")
 async def health() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "ok"}
-
-
-async def _grace_period_timer(
-    context: AppStateContext, grace_period_seconds: int
-) -> None:
-    """Background task that waits for grace period then auto-ends session.
-
-    Parameters
-    ----------
-    context : AppStateContext
-        Application state context containing session and clients
-    grace_period_seconds : int
-        Grace period in seconds
-
-    """
-    try:
-        await asyncio.sleep(grace_period_seconds)
-        logger.info("Grace period expired, auto-ending session")
-        await end_session(
-            context.session,
-            context.clients,
-            ended_at=context.disconnect_time,
-        )
-        # Clean up grace period state
-        context.disconnect_time = None
-        context.grace_timer_task = None
-    except asyncio.CancelledError:
-        logger.debug("Grace period timer cancelled")
-        raise
 
 
 @app.websocket("/ws")
@@ -100,6 +93,7 @@ async def websocket_endpoint(
     await websocket.accept()
     session_state = websocket.app.state.context.session
     clients = websocket.app.state.context.clients
+    grace_timer = websocket.app.state.context.grace_timer
 
     if role not in ("controller", "display"):
         logger.warning("Unknown role: %s", role)
@@ -108,13 +102,6 @@ async def websocket_endpoint(
 
     clients.add(websocket)
     logger.info("%s connected; total clients: %d", role.capitalize(), len(clients))
-
-    # Cancel grace period timer if clients are reconnecting
-    if websocket.app.state.context.has_active_grace_timer:
-        logger.info("Client reconnected, cancelling grace period timer")
-        websocket.app.state.context.grace_timer_task.cancel()
-        websocket.app.state.context.grace_timer_task = None
-        websocket.app.state.context.disconnect_time = None
 
     # Send current state to newly connected client
     await broadcast_state(session_state, {websocket})
@@ -125,6 +112,11 @@ async def websocket_endpoint(
             logger.info("Received from %s: %s", role, data)
             await handle_message(websocket, data)
 
+            if session_state.session_id is None:
+                grace_timer.stop()
+            else:
+                grace_timer.refresh()
+
     except WebSocketDisconnect:
         logger.info("%s disconnected", role.capitalize())
     except (RuntimeError, ValueError) as e:
@@ -132,15 +124,3 @@ async def websocket_endpoint(
     finally:
         clients.discard(websocket)
         logger.info("Client disconnected; total clients: %d", len(clients))
-
-        # Start grace period timer if this was the last client and session is active
-        if len(clients) == 0 and session_state.session_id is not None:
-            websocket.app.state.context.disconnect_time = datetime.now(UTC)
-            grace_period = websocket.app.state.context.grace_period_seconds
-            logger.info(
-                "Last client disconnected, starting %ds grace period",
-                grace_period,
-            )
-            websocket.app.state.context.grace_timer_task = asyncio.create_task(
-                _grace_period_timer(websocket.app.state.context, grace_period)
-            )

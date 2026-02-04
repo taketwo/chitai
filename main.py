@@ -42,6 +42,7 @@ def main() -> None:
         reload=settings.reload,
         ssl_certfile=settings.ssl_certfile,
         ssl_keyfile=settings.ssl_keyfile,
+        ws_ping_timeout=settings.ws_ping_timeout_seconds,
         log_config=LOG_CONFIG,
     )
 

@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     cert_dir: str = "data/certs"
     database_url: str = "sqlite:///data/chitai.db"
     grace_period_seconds: int = 3600
+    ws_ping_timeout_seconds: int | None = 300
 
     @property
     def ssl_certfile(self) -> str:

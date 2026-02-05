@@ -111,6 +111,10 @@ Starlette WebSocket operations raise:
 
 Catch these exceptions when calling send/receive methods.
 
+### Alpine.js
+
+- **Do NOT use `x-init` to call a method named `init()`** — Alpine automatically invokes `init()` if present on the `x-data` object. Using `x-init="init()"` as well causes it to run twice.
+
 ## Documentation
 
 ### Structure

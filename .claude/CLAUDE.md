@@ -111,6 +111,32 @@ Starlette WebSocket operations raise:
 
 Catch these exceptions when calling send/receive methods.
 
+## Documentation
+
+### Structure
+
+`docs/` contains six files. Each one covers a single concern. `architecture.md` is the entry point — it has a "where to look" table that maps concerns to files. The others
+are meant to be loaded individually depending on what you are working on.
+
+| File | Covers |
+|------|--------|
+| `architecture.md` | Big picture, how the pieces connect. Read this first if you are unfamiliar with the project. |
+| `websocket-protocol.md` | Session lifecycle, the state message, item state machine, grace timer, what is persisted vs. ephemeral. |
+| `data-model.md` | DB schema decisions, what is planned but not yet implemented, cascade rules, migration workflow. |
+| `frontend.md` | The three UIs, shared modules (`websocket.js`, `debug.js`), Alpine.js conventions, display animations. |
+| `deployment.md` | Environment variables, TLS, Docker profiles, CI/CD pipeline, `just` recipes. |
+| `roadmap.md` | What has shipped and what is planned. |
+
+### Principles
+
+Docs describe **why** and **how things fit together** — things that are genuinely hard or slow to reconstruct from code alone. They do not restate what the code already says
+clearly.
+
+- If a reader could figure it out in under two minutes by reading the relevant source file, it does not belong in the doc. Do not duplicate model field lists, message
+  shapes, or API signatures.
+- If understanding something requires reading three different source files and mentally stitching them together, that cross-cutting explanation belongs in the doc.
+- Each fact lives in exactly one doc. No redundancy across files.
+
 ## Code Quality & Linting
 
 ### Ruff Configuration
@@ -180,3 +206,17 @@ This project uses `just` for common development tasks. Always prefer using these
 - The `web/debug.js` shim intercepts all console methods and sends them to the backend
 
 **If a recipe is missing for a common task, add it to the justfile** rather than documenting manual commands.
+
+### Keeping Docs In Sync
+
+Most changes do not touch docs. Bug fixes, CSS tweaks, test additions, and dependency bumps are self-evident from the code and need no doc update.
+
+Update the relevant doc when a change affects any of the following. The mapping is specific — do not update docs that are not affected.
+
+| What Changed | Which Doc |
+|---|---|
+| WebSocket messages, session lifecycle, grace timer, what is persisted vs. ephemeral | `websocket-protocol.md` |
+| DB columns, migrations, cascade behaviour | `data-model.md` |
+| Frontend shared modules, Alpine conventions, new UI patterns | `frontend.md` |
+| Environment variables, Docker, CI/CD | `deployment.md` |
+| A planned feature ships, or the scope of a planned feature changes | `roadmap.md` |

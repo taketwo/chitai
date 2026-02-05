@@ -54,7 +54,14 @@ Scopes are optional but recommended. Use these scopes:
 [optional body]
 ```
 
-**Do NOT include attribution footers** (no "Generated with Claude Code" or "Co-Authored-By").
+**CRITICAL: Do NOT include ANY attribution footers in commit messages.**
+
+This means:
+- No `Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>`
+- No `Generated with Claude Code` or similar
+- No emoji, no attribution of any kind
+
+The commit message ends after the body. Nothing else.
 
 ### Usage Examples
 ```
@@ -175,7 +182,7 @@ git checkout -b feat/add-syllabification
 just fix          # Auto-format and fix issues
 just check        # Verify all checks pass
 just test         # Run tests
-git add .
+git add [files]   # Stage explicitly, never git add .
 git commit -m "feat(syllables): add rusyll integration"
 git push -u origin feat/add-syllabification
 # ... open PR on GitHub ...

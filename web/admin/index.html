@@ -25,6 +25,12 @@
           Items
         </button>
         <button
+          @click="setTab('illustrations')"
+          :class="{ active: currentTab === 'illustrations' }"
+        >
+          Illustrations
+        </button>
+        <button
           @click="setTab('sessions')"
           :class="{ active: currentTab === 'sessions' }"
         >
@@ -43,6 +49,7 @@
             <thead>
               <tr>
                 <th>Text</th>
+                <th>Illustrations</th>
                 <th>Usage Count</th>
                 <th>Last Used At</th>
                 <th>Created At</th>
@@ -51,16 +58,113 @@
             </thead>
             <tbody>
               <template x-for="item in items" :key="item.id">
-                <tr>
+                <tr class="clickable-row" @click="openItemModal(item, $event)">
                   <td x-text="item.text"></td>
+                  <td x-text="item.illustration_count || 0"></td>
                   <td x-text="item.usage_count"></td>
                   <td x-text="formatDate(item.last_used_at)"></td>
                   <td x-text="formatDate(item.created_at)"></td>
                   <td class="delete-cell">
                     <button
                       class="delete-btn"
-                      @click="deleteItem(item.id)"
+                      @click.stop="deleteItem(item.id)"
                       title="Delete item"
+                    >
+                      <svg class="icon">
+                        <use href="/web/icons.svg#trash"></use>
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </template>
+      </section>
+
+      <!-- Illustrations Tab -->
+      <section x-show="currentTab === 'illustrations'" class="tab-content">
+        <h2>Illustrations</h2>
+
+        <!-- Import Controls -->
+        <div class="import-controls">
+          <form @submit.prevent="importIllustrationFromUrl" class="import-form">
+            <input
+              type="text"
+              x-model="urlInput"
+              placeholder="Image URL"
+              class="url-input"
+            />
+            <button
+              type="submit"
+              class="import-btn"
+              :disabled="!urlInput.trim()"
+            >
+              Import from URL
+            </button>
+          </form>
+
+          <div class="file-upload-wrapper">
+            <input
+              type="file"
+              id="file-upload"
+              accept="image/*"
+              @change="importIllustrationFromFile"
+              style="display: none"
+            />
+            <button
+              type="button"
+              @click="$el.previousElementSibling.click()"
+              class="import-btn"
+            >
+              Upload File
+            </button>
+          </div>
+        </div>
+
+        <!-- Illustrations Table -->
+        <template x-if="illustrations.length === 0">
+          <p class="placeholder">No illustrations found.</p>
+        </template>
+        <template x-if="illustrations.length > 0">
+          <table>
+            <thead>
+              <tr>
+                <th>Preview</th>
+                <th>Dimensions</th>
+                <th>File Size</th>
+                <th>Items</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template
+                x-for="illustration in illustrations"
+                :key="illustration.id"
+              >
+                <tr
+                  class="clickable-row"
+                  @click="openIllustrationModal(illustration, $event)"
+                >
+                  <td class="thumbnail-cell">
+                    <img
+                      :src="`/api/illustrations/${illustration.id}/thumbnail`"
+                      :alt="`Illustration ${illustration.id}`"
+                      class="thumbnail"
+                    />
+                  </td>
+                  <td
+                    x-text="`${illustration.width} × ${illustration.height}`"
+                  ></td>
+                  <td
+                    x-text="formatFileSize(illustration.file_size_bytes)"
+                  ></td>
+                  <td x-text="illustration.item_count"></td>
+                  <td class="delete-cell">
+                    <button
+                      class="delete-btn"
+                      @click.stop="deleteIllustration(illustration.id)"
+                      title="Delete illustration"
                     >
                       <svg class="icon">
                         <use href="/web/icons.svg#trash"></use>
@@ -115,6 +219,221 @@
           </table>
         </template>
       </section>
+
+      <!-- Item Detail Modal -->
+      <div
+        x-show="itemModalVisible"
+        @click.self="closeItemModal"
+        @keydown.escape.window="closeItemModal"
+        class="modal-overlay"
+      >
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Item Details</h3>
+            <button @click="closeItemModal" class="close-btn">
+              <svg class="icon">
+                <use href="/web/icons.svg#x-mark"></use>
+              </svg>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <!-- Item Info -->
+            <div class="item-info-section">
+              <div class="info-row">
+                <span class="info-label">Text:</span>
+                <span class="info-value" x-text="modalItem?.text"></span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Language:</span>
+                <span class="info-value" x-text="modalItem?.language"></span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Usage Count:</span>
+                <span class="info-value" x-text="modalItem?.usage_count"></span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Last Used:</span>
+                <span
+                  class="info-value"
+                  x-text="formatDate(modalItem?.last_used_at)"
+                ></span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Created:</span>
+                <span
+                  class="info-value"
+                  x-text="formatDate(modalItem?.created_at)"
+                ></span>
+              </div>
+            </div>
+
+            <!-- Linked Illustrations -->
+            <div class="linked-section">
+              <h4>Linked Illustrations</h4>
+              <template x-if="modalLinkedIllustrations.length === 0">
+                <p class="placeholder">No illustrations linked.</p>
+              </template>
+              <template x-if="modalLinkedIllustrations.length > 0">
+                <div class="illustration-grid">
+                  <template
+                    x-for="illustration in modalLinkedIllustrations"
+                    :key="illustration.id"
+                  >
+                    <div class="illustration-card">
+                      <img
+                        :src="`/api/illustrations/${illustration.id}/thumbnail`"
+                        :alt="`Illustration ${illustration.id}`"
+                        class="card-thumbnail"
+                      />
+                      <button
+                        @click="unlinkIllustration(modalItem.id, illustration.id)"
+                        class="unlink-btn"
+                      >
+                        Unlink
+                      </button>
+                    </div>
+                  </template>
+                </div>
+              </template>
+
+              <button
+                @click="openIllustrationPicker"
+                class="add-illustration-btn"
+              >
+                Add Illustration
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Illustration Detail Modal -->
+      <div
+        x-show="illustrationModalVisible"
+        @click.self="closeIllustrationModal"
+        @keydown.escape.window="closeIllustrationModal"
+        class="modal-overlay"
+      >
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Illustration Details</h3>
+            <button @click="closeIllustrationModal" class="close-btn">
+              <svg class="icon">
+                <use href="/web/icons.svg#x-mark"></use>
+              </svg>
+            </button>
+          </div>
+
+          <div class="modal-body modal-two-panel">
+            <!-- Left Panel: Illustration Preview -->
+            <div class="illustration-preview-section">
+              <a
+                :href="`/api/illustrations/${modalIllustration?.id}/image`"
+                target="_blank"
+                title="Open full size in new tab"
+              >
+                <img
+                  :src="`/api/illustrations/${modalIllustration?.id}/image`"
+                  :alt="`Illustration ${modalIllustration?.id}`"
+                  class="illustration-preview"
+                />
+              </a>
+            </div>
+
+            <!-- Right Panel: Illustration Metadata -->
+            <div class="item-info-section">
+              <div class="info-row">
+                <span class="info-label">Dimensions:</span>
+                <span
+                  class="info-value"
+                  x-text="`${modalIllustration?.width} × ${modalIllustration?.height}`"
+                ></span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">File Size:</span>
+                <span
+                  class="info-value"
+                  x-text="formatFileSize(modalIllustration?.file_size_bytes)"
+                ></span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Source URL:</span>
+                <span class="info-value">
+                  <template x-if="modalIllustration?.source_url">
+                    <a
+                      :href="modalIllustration.source_url"
+                      target="_blank"
+                      class="external-link-icon"
+                      :title="modalIllustration.source_url"
+                    >
+                      <svg class="icon">
+                        <use
+                          href="/web/icons.svg#arrow-top-right-on-square"
+                        ></use>
+                      </svg>
+                    </a>
+                  </template>
+                  <template x-if="!modalIllustration?.source_url">
+                    <span class="placeholder">—</span>
+                  </template>
+                </span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Created:</span>
+                <span
+                  class="info-value"
+                  x-text="formatDate(modalIllustration?.created_at)"
+                ></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Illustration Picker Modal (stacks on top of item modal) -->
+      <div
+        x-show="pickerVisible"
+        @click.self="closeIllustrationPicker"
+        @keydown.escape.window="closeIllustrationPicker"
+        class="modal-overlay modal-overlay-stacked"
+      >
+        <div class="modal-content modal-picker">
+          <div class="modal-header">
+            <h3>Select Illustration</h3>
+            <button @click="closeIllustrationPicker" class="close-btn">
+              <svg class="icon">
+                <use href="/web/icons.svg#x-mark"></use>
+              </svg>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <template x-if="availableIllustrationsForPicker.length === 0">
+              <p class="placeholder">No available illustrations to link.</p>
+            </template>
+            <template x-if="availableIllustrationsForPicker.length > 0">
+              <div class="picker-grid">
+                <template
+                  x-for="illustration in availableIllustrationsForPicker"
+                  :key="illustration.id"
+                >
+                  <div
+                    class="picker-card"
+                    @click="linkIllustration(illustration.id)"
+                  >
+                    <img
+                      :src="`/api/illustrations/${illustration.id}/thumbnail`"
+                      :alt="`Illustration ${illustration.id}`"
+                      class="picker-thumbnail"
+                    />
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
     </div>
   </body>
 </html>

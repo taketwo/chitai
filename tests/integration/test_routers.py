@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from chitai.db.models import Item, SessionItem
+from chitai.db.models import Illustration, Item, ItemIllustration, SessionItem
 from chitai.db.models import Session as DBSession
 
 from .helpers import http_client
@@ -99,6 +99,46 @@ def create_session_item(
     db_session.add(session_item)
     db_session.commit()
     return session_item
+
+
+def create_illustration(
+    db_session: Session,
+    *,
+    source_url: str | None = None,
+    width: int = 800,
+    height: int = 600,
+    file_size_bytes: int = 12345,
+) -> Illustration:
+    """Create a test illustration.
+
+    Parameters
+    ----------
+    db_session : Session
+        Database session to use
+    source_url : str | None
+        Optional source URL
+    width : int
+        Image width
+    height : int
+        Image height
+    file_size_bytes : int
+        File size in bytes
+
+    Returns
+    -------
+    Illustration
+        Created illustration object
+
+    """
+    illustration = Illustration(
+        source_url=source_url,
+        width=width,
+        height=height,
+        file_size_bytes=file_size_bytes,
+    )
+    db_session.add(illustration)
+    db_session.commit()
+    return illustration
 
 
 class TestItemsEndpoints:
@@ -589,3 +629,131 @@ class TestLogsEndpoint:
 
                 assert response.status_code == 200
                 assert response.json() == {"status": "ok"}
+
+
+class TestIllustrationsEndpoints:
+    """Tests for /api/illustrations endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_list_illustrations_empty(self):
+        """Test GET /api/illustrations returns empty list."""
+        async with http_client() as client:
+            response = await client.get("/api/illustrations")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["illustrations"] == []
+            assert data["total"] == 0
+
+    @pytest.mark.asyncio
+    async def test_list_illustrations_with_data(self, db_session: Session):
+        """Test GET /api/illustrations returns all illustrations with item counts."""
+        illustration1 = create_illustration(
+            db_session, source_url="https://example.com/img1.jpg"
+        )
+        illustration2 = create_illustration(db_session, width=1024, height=768)
+
+        # Link illustration1 to two items
+        item1 = create_item(db_session, "собака")
+        item2 = create_item(db_session, "кошка")
+        db_session.add(
+            ItemIllustration(item_id=item1.id, illustration_id=illustration1.id)
+        )
+        db_session.add(
+            ItemIllustration(item_id=item2.id, illustration_id=illustration1.id)
+        )
+        db_session.commit()
+
+        async with http_client() as client:
+            response = await client.get("/api/illustrations")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["illustrations"]) == 2
+            assert data["total"] == 2
+
+            # Find illustrations in response (ordered by created_at desc)
+            illustrations_by_id = {ill["id"]: ill for ill in data["illustrations"]}
+
+            # Verify illustration1 has 2 items linked
+            assert illustrations_by_id[str(illustration1.id)]["item_count"] == 2
+            assert (
+                illustrations_by_id[str(illustration1.id)]["source_url"]
+                == "https://example.com/img1.jpg"
+            )
+
+            # Verify illustration2 has 0 items linked
+            assert illustrations_by_id[str(illustration2.id)]["item_count"] == 0
+            assert illustrations_by_id[str(illustration2.id)]["source_url"] is None
+
+    @pytest.mark.asyncio
+    async def test_list_illustrations_pagination(self, db_session: Session):
+        """Test GET /api/illustrations respects pagination parameters."""
+        for _ in range(5):
+            create_illustration(db_session)
+
+        async with http_client() as client:
+            # Get first 2
+            response = await client.get("/api/illustrations?offset=0&limit=2")
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["illustrations"]) == 2
+            assert data["total"] == 5
+
+            # Get next 2
+            response = await client.get("/api/illustrations?offset=2&limit=2")
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["illustrations"]) == 2
+            assert data["total"] == 5
+
+    @pytest.mark.asyncio
+    async def test_get_illustration_by_id(self, db_session: Session):
+        """Test GET /api/illustrations/{id} returns single illustration."""
+        illustration = create_illustration(
+            db_session, source_url="https://example.com/test.jpg", width=1200
+        )
+
+        async with http_client() as client:
+            response = await client.get(f"/api/illustrations/{illustration.id}")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["id"] == str(illustration.id)
+            assert data["source_url"] == "https://example.com/test.jpg"
+            assert data["width"] == 1200
+            assert data["item_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_get_illustration_not_found(self):
+        """Test GET /api/illustrations/{id} returns 404 when not found."""
+        async with http_client() as client:
+            response = await client.get(f"/api/illustrations/{FAKE_UUID}")
+
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Illustration not found"
+
+    @pytest.mark.asyncio
+    async def test_delete_illustration(self, db_session: Session):
+        """Test DELETE /api/illustrations/{id} deletes illustration."""
+        illustration = create_illustration(db_session)
+
+        async with http_client() as client:
+            response = await client.delete(f"/api/illustrations/{illustration.id}")
+
+            assert response.status_code == 200
+            assert response.json() == {"status": "deleted"}
+
+            # Verify illustration is deleted
+            response = await client.get(f"/api/illustrations/{illustration.id}")
+            assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_delete_illustration_not_found(self):
+        """Test DELETE /api/illustrations/{id} returns 404 when not found."""
+        async with http_client() as client:
+            response = await client.delete(f"/api/illustrations/{FAKE_UUID}")
+
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Illustration not found"
+

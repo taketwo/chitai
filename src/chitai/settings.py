@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///data/chitai.db"
     grace_period_seconds: int = 3600
     ws_ping_timeout_seconds: int | None = 300
+    illustration_dir: str = "data/illustrations"
+    illustration_max_dimension: int = 1200
+    illustration_thumbnail_max_dimension: int = 200
+    illustration_webp_quality: int = 85
 
     @property
     def ssl_certfile(self) -> str:

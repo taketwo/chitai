@@ -8,7 +8,12 @@ from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 from chitai.server.grace_timer import GraceTimer
-from chitai.server.routers import items_router, logs_router, sessions_router
+from chitai.server.routers import (
+    illustrations_router,
+    items_router,
+    logs_router,
+    sessions_router,
+)
 from chitai.server.session import SessionState
 from chitai.server.websocket.handlers import end_session, handle_message
 from chitai.server.websocket.state import broadcast_state
@@ -61,6 +66,7 @@ app.state.context = AppStateContext(
 )
 
 # Include REST API routers
+app.include_router(illustrations_router)
 app.include_router(items_router)
 app.include_router(logs_router)
 app.include_router(sessions_router)

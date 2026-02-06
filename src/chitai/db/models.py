@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from chitai.db.base import Base
@@ -62,6 +62,9 @@ class Item(Base):
     # Relationships
     session_items: Mapped[list[SessionItem]] = relationship(
         "SessionItem", back_populates="item", cascade="all, delete-orphan"
+    )
+    item_illustrations: Mapped[list[ItemIllustration]] = relationship(
+        "ItemIllustration", back_populates="item", cascade="all, delete-orphan"
     )
 
 
@@ -137,6 +140,92 @@ class SessionItem(Base):
     # Relationships
     session: Mapped[Session] = relationship("Session", back_populates="session_items")
     item: Mapped[Item] = relationship("Item", back_populates="session_items")
+
+
+class Illustration(Base):
+    """An illustration is an image that can be attached to items.
+
+    Images stored on disk using convention: {id}.webp and {id}_thumb.webp
+
+    Attributes
+    ----------
+    id : str
+        UUID primary key
+    source_url : str | None
+        Original URL if imported from web
+    width : int
+        Pixel width after processing
+    height : int
+        Pixel height after processing
+    file_size_bytes : int
+        File size for admin UI display
+    created_at : datetime
+        When the illustration was imported
+    item_illustrations : list[ItemIllustration]
+        Related item associations
+    """
+
+    __tablename__ = "illustrations"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    source_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    width: Mapped[int] = mapped_column(Integer, nullable=False)
+    height: Mapped[int] = mapped_column(Integer, nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=utc_now
+    )
+
+    # Relationships
+    item_illustrations: Mapped[list[ItemIllustration]] = relationship(
+        "ItemIllustration", back_populates="illustration", cascade="all, delete-orphan"
+    )
+
+
+class ItemIllustration(Base):
+    """Join table linking items to illustrations.
+
+    Attributes
+    ----------
+    id : str
+        UUID primary key
+    item_id : str
+        Foreign key to Item
+    illustration_id : str
+        Foreign key to Illustration
+    item : Item
+        Related item
+    illustration : Illustration
+        Related illustration
+    """
+
+    __tablename__ = "item_illustrations"
+    __table_args__ = (
+        Index(
+            "ix_item_illustrations_item_id_illustration_id",
+            "item_id",
+            "illustration_id",
+            unique=True,
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    item_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("items.id"), nullable=False
+    )
+    illustration_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("illustrations.id"), nullable=False
+    )
+
+    # Relationships
+    item: Mapped[Item] = relationship("Item", back_populates="item_illustrations")
+    illustration: Mapped[Illustration] = relationship(
+        "Illustration", back_populates="item_illustrations"
+    )
 
 
 class Settings(Base):

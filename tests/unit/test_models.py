@@ -8,7 +8,14 @@ from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 
 from chitai.db.base import Base
-from chitai.db.models import Item, Language, SessionItem, Settings
+from chitai.db.models import (
+    Illustration,
+    Item,
+    ItemIllustration,
+    Language,
+    SessionItem,
+    Settings,
+)
 from chitai.db.models import Session as DBSession
 
 if TYPE_CHECKING:
@@ -215,3 +222,158 @@ def test_language_enum_values() -> None:
     assert Language.RUSSIAN.value == "ru"
     assert Language.GERMAN.value == "de"
     assert Language.ENGLISH.value == "en"
+
+
+def test_illustration_creation(session: Session) -> None:
+    """Test creating and retrieving an Illustration."""
+    illustration = Illustration(
+        source_url="https://example.com/image.jpg",
+        width=800,
+        height=600,
+        file_size_bytes=12345,
+    )
+    session.add(illustration)
+    session.commit()
+
+    retrieved = session.scalars(select(Illustration)).first()
+    assert retrieved is not None
+    assert retrieved.source_url == "https://example.com/image.jpg"
+    assert retrieved.width == 800
+    assert retrieved.height == 600
+    assert retrieved.file_size_bytes == 12345
+    assert isinstance(retrieved.created_at, datetime)
+    assert len(retrieved.id) == 36
+
+
+def test_illustration_without_source_url(session: Session) -> None:
+    """Test creating an Illustration from file upload (no source URL)."""
+    illustration = Illustration(
+        source_url=None, width=1024, height=768, file_size_bytes=54321
+    )
+    session.add(illustration)
+    session.commit()
+
+    retrieved = session.scalars(select(Illustration)).first()
+    assert retrieved is not None
+    assert retrieved.source_url is None
+    assert retrieved.width == 1024
+    assert retrieved.height == 768
+
+
+def test_item_illustration_creation(session: Session) -> None:
+    """Test creating ItemIllustration linking Item and Illustration."""
+    item = Item(language=Language.RUSSIAN, text="собака")
+    illustration = Illustration(width=800, height=600, file_size_bytes=12345)
+    session.add_all([item, illustration])
+    session.commit()
+
+    link = ItemIllustration(item_id=item.id, illustration_id=illustration.id)
+    session.add(link)
+    session.commit()
+
+    retrieved_link = session.scalars(select(ItemIllustration)).first()
+    assert retrieved_link is not None
+    assert retrieved_link.item_id == item.id
+    assert retrieved_link.illustration_id == illustration.id
+    assert len(retrieved_link.id) == 36
+
+
+def test_item_illustration_relationships(session: Session) -> None:
+    """Test ItemIllustration relationships to Item and Illustration."""
+    item = Item(language=Language.RUSSIAN, text="собака")
+    illustration = Illustration(width=800, height=600, file_size_bytes=12345)
+    session.add_all([item, illustration])
+    session.commit()
+
+    link = ItemIllustration(item_id=item.id, illustration_id=illustration.id)
+    session.add(link)
+    session.commit()
+
+    retrieved_link = session.scalars(select(ItemIllustration)).first()
+    assert retrieved_link is not None
+    assert retrieved_link.item.text == "собака"
+    assert retrieved_link.illustration.width == 800
+
+    # Test back references
+    assert len(item.item_illustrations) == 1
+    assert item.item_illustrations[0].illustration.width == 800
+    assert len(illustration.item_illustrations) == 1
+    assert illustration.item_illustrations[0].item.text == "собака"
+
+
+def test_multiple_illustrations_per_item(session: Session) -> None:
+    """Test that an item can have multiple illustrations."""
+    item = Item(language=Language.RUSSIAN, text="собака")
+    illustration1 = Illustration(width=800, height=600, file_size_bytes=12345)
+    illustration2 = Illustration(width=1024, height=768, file_size_bytes=54321)
+    session.add_all([item, illustration1, illustration2])
+    session.commit()
+
+    link1 = ItemIllustration(item_id=item.id, illustration_id=illustration1.id)
+    link2 = ItemIllustration(item_id=item.id, illustration_id=illustration2.id)
+    session.add_all([link1, link2])
+    session.commit()
+
+    assert len(item.item_illustrations) == 2
+    widths = {link.illustration.width for link in item.item_illustrations}
+    assert widths == {800, 1024}
+
+
+def test_multiple_items_per_illustration(session: Session) -> None:
+    """Test that an illustration can be linked to multiple items."""
+    item1 = Item(language=Language.RUSSIAN, text="собака")
+    item2 = Item(language=Language.RUSSIAN, text="кошка")
+    illustration = Illustration(width=800, height=600, file_size_bytes=12345)
+    session.add_all([item1, item2, illustration])
+    session.commit()
+
+    link1 = ItemIllustration(item_id=item1.id, illustration_id=illustration.id)
+    link2 = ItemIllustration(item_id=item2.id, illustration_id=illustration.id)
+    session.add_all([link1, link2])
+    session.commit()
+
+    assert len(illustration.item_illustrations) == 2
+    texts = {link.item.text for link in illustration.item_illustrations}
+    assert texts == {"собака", "кошка"}
+
+
+def test_illustration_cascade_delete(session: Session) -> None:
+    """Test that deleting an illustration deletes item_illustrations but not items."""
+    item = Item(language=Language.RUSSIAN, text="собака")
+    illustration = Illustration(width=800, height=600, file_size_bytes=12345)
+    session.add_all([item, illustration])
+    session.commit()
+
+    link = ItemIllustration(item_id=item.id, illustration_id=illustration.id)
+    session.add(link)
+    session.commit()
+
+    # Delete illustration
+    session.delete(illustration)
+    session.commit()
+
+    # ItemIllustration should be deleted
+    assert session.scalar(select(func.count()).select_from(ItemIllustration)) == 0
+    # Item should still exist
+    assert session.scalar(select(func.count()).select_from(Item)) == 1
+
+
+def test_item_cascade_delete_with_illustrations(session: Session) -> None:
+    """Test that deleting an item deletes item_illustrations but not illustrations."""
+    item = Item(language=Language.RUSSIAN, text="собака")
+    illustration = Illustration(width=800, height=600, file_size_bytes=12345)
+    session.add_all([item, illustration])
+    session.commit()
+
+    link = ItemIllustration(item_id=item.id, illustration_id=illustration.id)
+    session.add(link)
+    session.commit()
+
+    # Delete item
+    session.delete(item)
+    session.commit()
+
+    # ItemIllustration should be deleted
+    assert session.scalar(select(func.count()).select_from(ItemIllustration)) == 0
+    # Illustration should still exist
+    assert session.scalar(select(func.count()).select_from(Illustration)) == 1

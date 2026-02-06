@@ -4,13 +4,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session  # noqa: TC002
 
 from chitai.db.engine import get_session
-from chitai.db.models import Item, Language, SessionItem
+from chitai.db.models import Illustration, Item, ItemIllustration, Language, SessionItem
 from chitai.server.routers.schemas import (
     AutocompleteResponse,
     AutocompleteSuggestion,
+    ItemIllustrationResponse,
     ItemListResponse,
     ItemResponse,
 )
@@ -198,3 +200,81 @@ async def delete_item(
     db.commit()
 
     return {"status": "deleted"}
+
+
+@router.get("/{item_id}/illustrations", response_model=list[ItemIllustrationResponse])
+async def list_item_illustrations(
+    item_id: str, db: Annotated[Session, Depends(get_session)]
+) -> list[ItemIllustrationResponse]:
+    """List all illustrations linked to an item."""
+    item = db.get(Item, item_id)
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    query = (
+        select(Illustration)
+        .join(ItemIllustration, Illustration.id == ItemIllustration.illustration_id)
+        .where(ItemIllustration.item_id == item_id)
+        .order_by(Illustration.created_at.desc())
+    )
+
+    illustrations = db.scalars(query).all()
+
+    return [
+        ItemIllustrationResponse(
+            id=illustration.id,
+            width=illustration.width,
+            height=illustration.height,
+        )
+        for illustration in illustrations
+    ]
+
+
+@router.post("/{item_id}/illustrations/{illustration_id}", status_code=201)
+async def link_illustration_to_item(
+    item_id: str,
+    illustration_id: str,
+    db: Annotated[Session, Depends(get_session)],
+) -> dict[str, str]:
+    """Link an illustration to an item."""
+    item = db.get(Item, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    illustration = db.get(Illustration, illustration_id)
+    if not illustration:
+        raise HTTPException(status_code=404, detail="Illustration not found")
+
+    link = ItemIllustration(item_id=item_id, illustration_id=illustration_id)
+    db.add(link)
+
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Link already exists") from e
+
+    return {"status": "linked"}
+
+
+@router.delete("/{item_id}/illustrations/{illustration_id}")
+async def unlink_illustration_from_item(
+    item_id: str,
+    illustration_id: str,
+    db: Annotated[Session, Depends(get_session)],
+) -> dict[str, str]:
+    """Unlink an illustration from an item."""
+    link = db.scalars(
+        select(ItemIllustration)
+        .where(ItemIllustration.item_id == item_id)
+        .where(ItemIllustration.illustration_id == illustration_id)
+    ).first()
+
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found")
+
+    db.delete(link)
+    db.commit()
+
+    return {"status": "unlinked"}

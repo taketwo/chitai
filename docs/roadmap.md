@@ -34,6 +34,8 @@
 - Two-panel tablet layout: text + illustration split 50/50, adapts to orientation
 - Illustration fades in on item completion, fades out synchronized with text slide animation
 - Pre-fetch for instant reveal
+- Item creation form in admin UI (text + language dropdown)
+- Unique constraint on `(text, language)` prevents duplicates
 
 ## Planned
 

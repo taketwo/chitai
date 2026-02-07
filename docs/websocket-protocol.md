@@ -25,6 +25,7 @@ The server pushes state after every mutation. Shape (see `StatePayload` in `prot
     "words": ["..."],
     "syllables": [["..."]],
     "current_word_index": 0,
+    "illustration_id": "uuid | null",
     "queue": [{ "session_item_id": "uuid", "text": "..." }]
   }
 }
@@ -81,8 +82,11 @@ This is the cross-cutting concern that's hardest to reconstruct from code alone,
 | session_id               | Yes, on `start_session`        | `sessions.id`                      |
 | current_session_item_id  | Yes, on display                | `session_items.displayed_at`       |
 | queue membership         | Yes, on `add_item`             | `session_items` with `displayed_at = NULL` |
+| illustration_id          | Never (selected randomly)      | Ephemeral                          |
 | current_word_index       | Never                          | Ephemeral                          |
 | words                    | Never (derived from item text) | Ephemeral                          |
 | syllables                | Never (computed on broadcast)  | Ephemeral                          |
 
 `syllables` is a computed property on `SessionState` — it calls `syllabify()` on `words` every time it is accessed. Nothing syllabification-related is stored.
+
+`illustration_id` is randomly selected from the item's linked illustrations when the item loads. If an item has multiple illustrations, one is chosen via `random.choice()`. The selection is ephemeral — it exists only for the current display and is not persisted.

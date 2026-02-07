@@ -2,6 +2,10 @@
 
 /* Variables */
 
+html {
+  scrollbar-gutter: stable;
+}
+
 :root {
   --admin-bg: #f5f5f5;
   --admin-content-bg: #fff;

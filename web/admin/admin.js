@@ -14,6 +14,10 @@ function adminApp() {
     // Import controls
     urlInput: "",
 
+    // Item creation controls
+    newItemText: "",
+    newItemLanguage: "ru",
+
     // Item modal state
     itemModalVisible: false,
     modalItem: null,
@@ -97,6 +101,37 @@ function adminApp() {
         this.illustrations = data.illustrations;
       } catch (error) {
         console.error("Failed to fetch illustrations:", error);
+      }
+    },
+
+    // Create item
+
+    async createItem() {
+      if (!this.newItemText.trim() || !this.newItemLanguage) return;
+
+      try {
+        const formData = new FormData();
+        formData.append("text", this.newItemText.trim());
+        formData.append("language", this.newItemLanguage);
+
+        const response = await fetch("/api/items", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.error("Failed to create item:", error);
+          alert(`Failed to create item: ${error.detail || "Unknown error"}`);
+          return;
+        }
+
+        this.newItemText = "";
+        this.newItemLanguage = "ru";
+        await this.fetchItems();
+      } catch (error) {
+        console.error("Failed to create item:", error);
+        alert("Failed to create item. See console for details.");
       }
     },
 

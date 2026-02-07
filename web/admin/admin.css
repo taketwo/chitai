@@ -172,35 +172,47 @@ tr:hover .delete-btn {
   background-color: var(--admin-bg);
 }
 
-/* Import controls */
+/* Form controls (shared by import and create forms) */
 
-.import-controls {
+.form-controls {
   display: flex;
   gap: 15px;
   margin-bottom: 20px;
   align-items: center;
 }
 
-.import-form {
+.form-inline {
   display: flex;
   gap: 10px;
   flex: 1;
 }
 
-.url-input {
-  flex: 1;
+/* Input fields (text inputs, selects) */
+
+.input-field {
   padding: 8px 12px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   font-size: 14px;
 }
 
-.url-input:focus {
+.input-field:focus {
   outline: none;
   border-color: var(--admin-link);
 }
 
-.import-btn {
+.input-field[type="text"] {
+  flex: 1;
+}
+
+select.input-field {
+  min-width: 150px;
+  background-color: var(--admin-content-bg);
+}
+
+/* Primary action button */
+
+.btn-primary {
   padding: 8px 16px;
   background-color: var(--admin-link);
   color: var(--color-white);
@@ -211,11 +223,11 @@ tr:hover .delete-btn {
   white-space: nowrap;
 }
 
-.import-btn:hover:not(:disabled) {
+.btn-primary:hover:not(:disabled) {
   background-color: var(--admin-link-hover);
 }
 
-.import-btn:disabled {
+.btn-primary:disabled {
   background-color: var(--color-disabled);
   cursor: not-allowed;
 }

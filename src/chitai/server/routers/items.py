@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Form, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session  # noqa: TC002
@@ -18,6 +18,68 @@ from chitai.server.routers.schemas import (
 )
 
 router = APIRouter(prefix="/api/items", tags=["items"])
+
+
+@router.post("", response_model=ItemResponse, status_code=201)
+async def create_item(
+    text: Annotated[str, Form()],
+    language: Annotated[Language, Form()],
+    *,
+    db: Annotated[Session, Depends(get_session)],
+) -> ItemResponse:
+    """Create a new item.
+
+    Parameters
+    ----------
+    text : str
+        The word, phrase, or sentence (via form data)
+    language : Language
+        Language of the text: ru, de, or en (via form data)
+    db : Session
+        Database session (injected)
+
+    Returns
+    -------
+    ItemResponse
+        The newly created item
+
+    Raises
+    ------
+    HTTPException
+        400 if text is empty or only whitespace
+        409 if item with same text and language already exists
+
+    """
+    # Validate text
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty")
+
+    # Create item
+    item = Item(
+        text=text.strip(),
+        language=language,
+    )
+    db.add(item)
+
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Item with this text and language already exists",
+        ) from e
+
+    db.refresh(item)
+
+    return ItemResponse(
+        id=item.id,
+        text=item.text,
+        language=item.language,
+        created_at=item.created_at,
+        usage_count=0,
+        last_used_at=None,
+    )
 
 
 @router.get("", response_model=ItemListResponse)

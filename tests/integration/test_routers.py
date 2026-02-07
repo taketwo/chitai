@@ -191,6 +191,105 @@ class TestItemsEndpoints:
             assert items_by_text["вода"]["last_used_at"] is None
 
     @pytest.mark.asyncio
+    async def test_create_item(self):
+        """Test POST /api/items creates a new item."""
+        async with http_client() as client:
+            response = await client.post(
+                "/api/items",
+                data={"text": "новый", "language": "ru"},
+            )
+
+            assert response.status_code == 201
+            data = response.json()
+            assert data["text"] == "новый"
+            assert data["language"] == "ru"
+            assert data["usage_count"] == 0
+            assert data["last_used_at"] is None
+            assert "id" in data
+            assert "created_at" in data
+
+    @pytest.mark.asyncio
+    async def test_create_item_different_languages(self):
+        """Test creating items with different languages."""
+        async with http_client() as client:
+            # Create items in all supported languages
+            for lang in ["ru", "de", "en"]:
+                response = await client.post(
+                    "/api/items",
+                    data={"text": "test", "language": lang},
+                )
+                assert response.status_code == 201
+                assert response.json()["language"] == lang
+
+            # Verify all three items exist
+            response = await client.get("/api/items")
+            assert response.status_code == 200
+            items = response.json()["items"]
+            assert len(items) == 3
+
+    @pytest.mark.asyncio
+    async def test_create_item_duplicate(self):
+        """Test POST /api/items returns 409 for duplicate text and language."""
+        async with http_client() as client:
+            # Create initial item
+            response = await client.post(
+                "/api/items",
+                data={"text": "дубликат", "language": "ru"},
+            )
+            assert response.status_code == 201
+
+            # Attempt to create duplicate
+            response = await client.post(
+                "/api/items",
+                data={"text": "дубликат", "language": "ru"},
+            )
+            assert response.status_code == 409
+            assert "already exists" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_create_item_empty_text(self):
+        """Test POST /api/items returns 422 for empty text."""
+        async with http_client() as client:
+            response = await client.post(
+                "/api/items",
+                data={"text": "", "language": "ru"},
+            )
+            # FastAPI returns 422 for empty required field
+            assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_create_item_whitespace_only(self):
+        """Test POST /api/items returns 400 for whitespace-only text."""
+        async with http_client() as client:
+            response = await client.post(
+                "/api/items",
+                data={"text": "   ", "language": "ru"},
+            )
+            assert response.status_code == 400
+            assert "cannot be empty" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_create_item_trims_whitespace(self):
+        """Test POST /api/items trims leading/trailing whitespace."""
+        async with http_client() as client:
+            response = await client.post(
+                "/api/items",
+                data={"text": "  текст  ", "language": "ru"},
+            )
+            assert response.status_code == 201
+            assert response.json()["text"] == "текст"
+
+    @pytest.mark.asyncio
+    async def test_create_item_invalid_language(self):
+        """Test POST /api/items returns 422 for invalid language."""
+        async with http_client() as client:
+            response = await client.post(
+                "/api/items",
+                data={"text": "test", "language": "invalid"},
+            )
+            assert response.status_code == 422
+
+    @pytest.mark.asyncio
     async def test_get_item_by_id(self, db_session: Session):
         """Test GET /api/items/{id} returns single item with correct stats."""
         item = create_item(db_session, "тестовый")

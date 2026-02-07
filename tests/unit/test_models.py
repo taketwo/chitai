@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from sqlalchemy import create_engine, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from chitai.db.base import Base
@@ -54,6 +55,29 @@ def test_item_creation(session: Session) -> None:
     assert retrieved.language == Language.RUSSIAN
     assert isinstance(retrieved.created_at, datetime)
     assert len(retrieved.id) == 36  # UUID string length
+
+
+def test_item_unique_constraint(session: Session) -> None:
+    """Test that items with same text and language cannot be created."""
+    item1 = Item(language=Language.RUSSIAN, text="молоко")
+    session.add(item1)
+    session.commit()
+
+    # Attempt to create duplicate item with same text and language
+    item2 = Item(language=Language.RUSSIAN, text="молоко")
+    session.add(item2)
+
+    with pytest.raises(IntegrityError):
+        session.commit()
+
+    session.rollback()
+
+    # Same text but different language should be allowed
+    item3 = Item(language=Language.GERMAN, text="молоко")
+    session.add(item3)
+    session.commit()
+
+    assert session.scalar(select(func.count()).select_from(Item)) == 2
 
 
 def test_session_creation(session: Session) -> None:

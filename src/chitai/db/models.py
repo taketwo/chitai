@@ -48,7 +48,7 @@ class Item(Base):
     """
 
     __tablename__ = "items"
-    __table_args__ = (Index("ix_items_text_language", "text", "language"),)
+    __table_args__ = (Index("ix_items_text_language", "text", "language", unique=True),)
 
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid4())

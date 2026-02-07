@@ -7,7 +7,7 @@ are not obvious from reading the models directly.
 
 Six tables: `items`, `sessions`, `session_items`, `settings`, `illustrations`, `item_illustrations`.
 
-**Item** is the reusable unit of content — a word, phrase, or sentence in a specific language. Items are created on the fly during sessions (deduplicated by `(text, language)`) and persist across sessions. The composite index on `(text, language)` serves the autocomplete prefix query.
+**Item** is the reusable unit of content — a word, phrase, or sentence in a specific language. Items are created on the fly during sessions or manually via the admin UI. Uniqueness is enforced by a unique index on `(text, language)` — attempting to create a duplicate returns a 409 Conflict. The index also serves the autocomplete prefix query.
 
 **Session** is one reading practice run. It records start/end timestamps and the language. A session with `ended_at = NULL` is either still active or was abandoned (server restarted mid-session — sessions do not survive restarts).
 

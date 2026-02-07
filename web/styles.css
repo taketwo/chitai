@@ -338,17 +338,46 @@ body.controller {
 /* Display styles */
 body.display {
   background: var(--color-white);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 40px;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.display .app-wrapper {
+  width: 100%;
+  height: 100%;
 }
 
 .display .container {
   width: 100%;
-  max-width: 900px;
+  height: 100%;
+  display: grid;
+  gap: 40px;
+  padding: 40px;
   text-align: center;
+  box-sizing: border-box;
+}
+
+.display .container.orientation-landscape {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+.display .container.orientation-portrait {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.display .text-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .display #textDisplay {
@@ -360,9 +389,29 @@ body.display {
   font-size: 48px;
   line-height: 1.5;
   color: var(--color-text);
+  max-width: 900px;
   transition:
     transform 0.5s ease,
     opacity 0.5s ease;
+}
+
+.display #illustrationDisplay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.display #illustrationDisplay.visible {
+  opacity: 1;
+}
+
+.display #illustrationDisplay img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .display #textDisplay.slide-out-vertical {

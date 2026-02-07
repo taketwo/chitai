@@ -66,6 +66,7 @@ def build_state_payload(session_state: SessionState) -> StatePayload:
         words=session_state.words,
         syllables=session_state.syllables,
         current_word_index=session_state.current_word_index,
+        illustration_id=session_state.current_illustration_id,
         queue=queue_items,
     )
 

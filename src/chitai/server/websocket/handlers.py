@@ -1,20 +1,52 @@
 """WebSocket message handlers."""
 
 import logging
+import random
 from datetime import UTC, datetime
 
 from fastapi import WebSocket  # noqa: TC002
 from pydantic import ValidationError
 from sqlalchemy import select
+from sqlalchemy.orm import Session as SQLAlchemySession  # noqa: TC002
 
 from chitai.db.engine import get_session_ctx
-from chitai.db.models import Item, Language, SessionItem
+from chitai.db.models import Illustration, Item, ItemIllustration, Language, SessionItem
 from chitai.db.models import Session as DBSession
 from chitai.server.session import SessionState  # noqa: TC001
 from chitai.server.websocket.protocol import incoming_message_adapter
 from chitai.server.websocket.state import broadcast_state
 
 logger = logging.getLogger(__name__)
+
+
+def _select_random_illustration(
+    db_session: SQLAlchemySession, item_id: str
+) -> str | None:
+    """Select a random illustration for an item.
+
+    Parameters
+    ----------
+    db_session : SQLAlchemySession
+        Database session
+    item_id : str
+        Item ID to fetch illustrations for
+
+    Returns
+    -------
+    str | None
+        Random illustration ID, or None if item has no illustrations
+
+    """
+    illustrations = db_session.scalars(
+        select(Illustration.id)
+        .join(ItemIllustration, Illustration.id == ItemIllustration.illustration_id)
+        .where(ItemIllustration.item_id == item_id)
+    ).all()
+
+    if not illustrations:
+        return None
+
+    return random.choice(illustrations)  # noqa: S311
 
 
 async def handle_message(websocket: WebSocket, data: dict) -> None:
@@ -173,6 +205,9 @@ async def add_item(
             db_session.commit()
 
             session_state.current_session_item_id = session_item.id
+            session_state.current_illustration_id = _select_random_illustration(
+                db_session, item.id
+            )
             session_state.set_text(text)
             logger.info("Item displayed immediately: %s", item.id)
         else:
@@ -237,6 +272,9 @@ async def next_item(session_state: SessionState, clients: set[WebSocket]) -> Non
             await broadcast_state(session_state, clients)
             return
 
+        session_state.current_illustration_id = _select_random_illustration(
+            db_session, item.id
+        )
         session_state.set_text(item.text)
         logger.info("Advanced to next item: %s", item.id)
 

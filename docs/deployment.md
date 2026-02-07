@@ -4,13 +4,17 @@
 
 All settings are driven by environment variables with the `CHITAI_` prefix (Pydantic settings in `src/chitai/settings.py`).
 
-| Variable                          | Default                  | Effect                                    |
-|-----------------------------------|--------------------------|-------------------------------------------|
-| `CHITAI_RELOAD`                   | `false`                  | Uvicorn hot-reload (dev only)             |
-| `CHITAI_DATABASE_URL`             | `sqlite:///data/chitai.db` | SQLAlchemy connection string            |
-| `CHITAI_GRACE_PERIOD_SECONDS`     | `3600`                   | Idle session auto-end timeout             |
-| `CHITAI_WS_PING_TIMEOUT_SECONDS`  | `300`                    | Uvicorn WebSocket ping timeout            |
-| `CHITAI_CERT_DIR`                 | `data/certs`             | Directory for TLS cert and key            |
+| Variable                              | Default                  | Effect                                    |
+|---------------------------------------|--------------------------|-------------------------------------------|
+| `CHITAI_RELOAD`                       | `false`                  | Uvicorn hot-reload (dev only)             |
+| `CHITAI_DATABASE_URL`                 | `sqlite:///data/chitai.db` | SQLAlchemy connection string            |
+| `CHITAI_GRACE_PERIOD_SECONDS`         | `3600`                   | Idle session auto-end timeout             |
+| `CHITAI_WS_PING_TIMEOUT_SECONDS`      | `300`                    | Uvicorn WebSocket ping timeout            |
+| `CHITAI_CERT_DIR`                     | `data/certs`             | Directory for TLS cert and key            |
+| `CHITAI_ILLUSTRATION_DIR`             | `data/illustrations`     | Directory for illustration image files    |
+| `CHITAI_ILLUSTRATION_MAX_DIMENSION`   | `1200`                   | Max width/height for full images (px)    |
+| `CHITAI_ILLUSTRATION_THUMBNAIL_MAX_DIMENSION` | `200`            | Max width/height for thumbnails (px)      |
+| `CHITAI_ILLUSTRATION_WEBP_QUALITY`    | `85`                     | WebP quality (0-100)                      |
 
 ## TLS
 

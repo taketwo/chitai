@@ -24,11 +24,18 @@
 - WebSocket reliability: auto-reconnect with backoff, visibility-aware connection lifecycle, activity-based grace timer, configurable ping timeout
 - Integration tests covering the full session flow end to end
 
+### v0.4 — Illustrations
+
+- Many-to-many relationship: items can have multiple illustrations, illustrations can attach to multiple items
+- Import from URL or file upload (admin UI)
+- Images processed to WebP format with configurable quality and max dimensions
+- Convention-based file storage: `{uuid}.webp` and `{uuid}_thumb.webp` in `data/illustrations/`
+- Random selection when item has multiple illustrations (ephemeral, not persisted)
+- Two-panel tablet layout: text + illustration split 50/50, adapts to orientation
+- Illustration fades in on item completion, fades out synchronized with text slide animation
+- Pre-fetch for instant reveal
+
 ## Planned
-
-### v0.4 — Illustrations (laptop workflow)
-
-Attach images to items via upload or URL paste. Images saved locally under `data/illustrations/`. Two-panel tablet layout: text + illustration, with the illustration revealed after the item is completed.
 
 ### v0.5 — Starring & back-scroll
 

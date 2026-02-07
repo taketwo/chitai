@@ -41,8 +41,16 @@ SVG sprite. Icons are referenced via `<use href="/web/icons.svg#name">`.
 - All three pages use the `x-data="appName()"` pattern — a plain function that returns the component object. `init()` is the setup entry point within that object.
 - `$refs` are used sparingly: the status indicator element and the controller's current-word element (for dynamic font-size adjustment).
 
-## Display animations
+## Display layout and animations
 
-When a new item starts (transition from completed/empty to word index 0), the display animates a slide: old text slides out, new text slides in from the opposite side. The slide direction adapts to the viewport — vertical on landscape (tablet), horizontal on portrait. The animation is driven by CSS transitions and coordinated by Alpine state (`slideState`). An `animationId` counter guards against stale animations if a new item arrives before the previous transition finishes.
+The display uses a two-panel layout: text on one side, illustration on the other. The panels split 50/50 and adapt to orientation — landscape (side-by-side) vs portrait (stacked). This is handled via CSS Grid with `grid-template-columns` and `grid-template-rows` set dynamically based on an `orientation` data property that updates on window resize.
 
-The highlight (yellow background on the current word) is applied *after* the slide-in settles, so the child sees the new text arrive before attention is drawn to word one.
+The text panel is a flex container that centers the `#textDisplay` element (max-width 900px), so word highlights fit the content width rather than stretching to fill the full panel.
+
+**Slide animation:** When a new item starts (transition from completed/empty to word index 0), the text slides out and in from opposite sides. The slide direction adapts to viewport orientation. The illustration fades out simultaneously with the text slide-out, then the new illustration is pre-fetched (via `new Image()`) during the off-screen transition.
+
+**Illustration reveal:** When the item completes (`current_word_index` becomes `null`), the illustration fades in via opacity transition. The image is centered in its panel with `object-fit: contain`.
+
+The highlight (yellow background on the current word) is applied *after* the slide-in settles, so the child sees the new text arrive before attention is drawn to word one. An `animationId` counter guards against stale animations if a new item arrives before the previous transition finishes.
+
+**Placeholder:** A centered spinner (🌀) overlays the entire screen when no session is active. It fades in/out via opacity transition and is positioned independently of the panel layout (`position: absolute` covering the full `.app-wrapper`).

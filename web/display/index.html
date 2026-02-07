@@ -17,50 +17,58 @@
     <script defer src="/web/vendor/alpine.min.js"></script>
   </head>
   <body class="display">
-    <div x-data="displayApp()">
+    <div x-data="displayApp()" class="app-wrapper">
       <div x-ref="status" class="status"></div>
 
-      <div class="container">
-        <div
-          id="textDisplay"
-          :class="{
-            'slide-out-vertical': slideState === 'out-vertical',
-            'slide-in-vertical': slideState === 'in-vertical',
-            'slide-out-horizontal': slideState === 'out-horizontal',
-            'slide-in-horizontal': slideState === 'in-horizontal'
-          }"
-        >
-          <template x-if="!hasWords">
-            <span class="placeholder"></span>
-          </template>
-          <template x-if="hasWords">
-            <template x-for="(word, index) in words" :key="index">
-              <div
-                class="word"
-                :class="{
+      <div class="container" :class="`orientation-${orientation}`">
+        <div class="text-panel">
+          <div
+            id="textDisplay"
+            :class="{
+              'slide-out-vertical': slideState === 'out-vertical',
+              'slide-in-vertical': slideState === 'in-vertical',
+              'slide-out-horizontal': slideState === 'out-horizontal',
+              'slide-in-horizontal': slideState === 'in-horizontal'
+            }"
+          >
+            <template x-if="!hasWords">
+              <span class="placeholder"></span>
+            </template>
+            <template x-if="hasWords">
+              <template x-for="(word, index) in words" :key="index">
+                <div
+                  class="word"
+                  :class="{
                   read: !isCompleted && index < currentWordIndex,
                   current: !isCompleted && index === currentWordIndex,
                   future: !isCompleted && index > currentWordIndex,
                   dimmed: !isCompleted && ((index < currentWordIndex && dimReadWords) || (index > currentWordIndex && dimFutureWords))
                 }"
-              >
-                <template x-if="showSyllables && syllables[index]">
-                  <template
-                    x-for="(syllable, sylIndex) in syllables[index]"
-                    :key="sylIndex"
-                  >
-                    <span
-                      class="syllable"
-                      :class="{ 'syllable-with-separator': sylIndex < syllables[index].length - 1 }"
-                      x-text="syllable"
-                    ></span>
+                >
+                  <template x-if="showSyllables && syllables[index]">
+                    <template
+                      x-for="(syllable, sylIndex) in syllables[index]"
+                      :key="sylIndex"
+                    >
+                      <span
+                        class="syllable"
+                        :class="{ 'syllable-with-separator': sylIndex < syllables[index].length - 1 }"
+                        x-text="syllable"
+                      ></span>
+                    </template>
                   </template>
-                </template>
-                <template x-if="!showSyllables || !syllables[index]">
-                  <span x-text="word"></span>
-                </template>
-              </div>
+                  <template x-if="!showSyllables || !syllables[index]">
+                    <span x-text="word"></span>
+                  </template>
+                </div>
+              </template>
             </template>
+          </div>
+        </div>
+
+        <div id="illustrationDisplay" :class="{ visible: illustrationVisible }">
+          <template x-if="illustrationUrl">
+            <img :src="illustrationUrl" alt="Illustration" />
           </template>
         </div>
       </div>

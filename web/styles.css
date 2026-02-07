@@ -351,6 +351,31 @@ body.display {
 .display .app-wrapper {
   width: 100%;
   height: 100%;
+  position: relative;
+}
+
+.display .placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 50px;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.5s ease;
+  z-index: 10;
+}
+
+.display .placeholder.hidden {
+  opacity: 0;
+}
+
+.display .placeholder::before {
+  content: "🌀";
 }
 
 .display .container {
@@ -460,11 +485,6 @@ body.display {
   line-height: 0;
   font-size: 0.55em;
   margin: 0 0.15em;
-}
-
-.display .placeholder::before {
-  content: "🌀";
-  font-size: 50px;
 }
 
 @media (max-width: 768px) {

@@ -20,6 +20,8 @@
     <div x-data="displayApp()" class="app-wrapper">
       <div x-ref="status" class="status"></div>
 
+      <div class="placeholder" :class="{ hidden: hasWords }"></div>
+
       <div class="container" :class="`orientation-${orientation}`">
         <div class="text-panel">
           <div
@@ -31,9 +33,6 @@
               'slide-in-horizontal': slideState === 'in-horizontal'
             }"
           >
-            <template x-if="!hasWords">
-              <span class="placeholder"></span>
-            </template>
             <template x-if="hasWords">
               <template x-for="(word, index) in words" :key="index">
                 <div

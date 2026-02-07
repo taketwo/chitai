@@ -41,6 +41,32 @@
       <!-- Items Tab -->
       <section x-show="currentTab === 'items'" class="tab-content">
         <h2>Items</h2>
+
+        <!-- Create Item Controls -->
+        <div class="form-controls">
+          <form @submit.prevent="createItem" class="form-inline">
+            <input
+              type="text"
+              x-model="newItemText"
+              placeholder="Enter text..."
+              class="input-field"
+            />
+            <select x-model="newItemLanguage" class="input-field">
+              <option value="">Select language...</option>
+              <option value="ru">Russian</option>
+              <option value="de">German</option>
+              <option value="en">English</option>
+            </select>
+            <button
+              type="submit"
+              class="btn-primary"
+              :disabled="!newItemText.trim() || !newItemLanguage"
+            >
+              Create Item
+            </button>
+          </form>
+        </div>
+
         <template x-if="items.length === 0">
           <p class="placeholder">No items found.</p>
         </template>
@@ -87,17 +113,17 @@
         <h2>Illustrations</h2>
 
         <!-- Import Controls -->
-        <div class="import-controls">
-          <form @submit.prevent="importIllustrationFromUrl" class="import-form">
+        <div class="form-controls">
+          <form @submit.prevent="importIllustrationFromUrl" class="form-inline">
             <input
               type="text"
               x-model="urlInput"
               placeholder="Image URL"
-              class="url-input"
+              class="input-field"
             />
             <button
               type="submit"
-              class="import-btn"
+              class="btn-primary"
               :disabled="!urlInput.trim()"
             >
               Import from URL
@@ -115,7 +141,7 @@
             <button
               type="button"
               @click="$el.previousElementSibling.click()"
-              class="import-btn"
+              class="btn-primary"
             >
               Upload File
             </button>

@@ -24,6 +24,9 @@ class SessionState:
         Session language. None when no session is active.
     current_session_item_id : str | None
         ID of the SessionItem currently being displayed. None when no item is displayed.
+    current_illustration_id : str | None
+        ID of the Illustration randomly selected for current item. None when no item is
+        displayed or item has no illustrations.
     queue : list[str]
         SessionItem IDs waiting to be displayed. Empty when no items are queued.
     words : list[str]
@@ -37,6 +40,7 @@ class SessionState:
     session_id: str | None = None
     language: str | None = None
     current_session_item_id: str | None = None
+    current_illustration_id: str | None = None
     queue: list[str] = field(default_factory=list)
     words: list[str] = field(default_factory=list)
     current_word_index: int | None = None
@@ -119,6 +123,7 @@ class SessionState:
         self.session_id = None
         self.language = None
         self.current_session_item_id = None
+        self.current_illustration_id = None
         self.queue.clear()
         self.words.clear()
         self.current_word_index = None

@@ -5,7 +5,7 @@ import asyncio
 import pytest
 from sqlalchemy import select
 
-from chitai.db.models import Item, SessionItem
+from chitai.db.models import Illustration, Item, ItemIllustration, SessionItem
 from chitai.db.models import Session as DBSession
 from chitai.server.app import app
 
@@ -756,3 +756,170 @@ async def test_completed_state_flow():
         assert state["payload"]["words"] == ["новый", "текст"]
         assert state["payload"]["current_word_index"] == 0
         assert len(state["payload"]["queue"]) == 0
+
+
+@pytest.mark.asyncio
+async def test_illustration_id_none_when_item_has_no_illustrations():
+    """Test that illustration_id is None when item has no illustrations."""
+    async with started_session() as (controller_ws, _, _):
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "молоко"}}
+        )
+        state = await controller_ws.receive_json()
+
+        assert state["payload"]["illustration_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_illustration_id_populated_when_item_has_illustration(db_session):
+    """Test that illustration_id is set when item has an illustration."""
+    # Create item with illustration
+    item = db_session.scalars(select(Item).where(Item.text == "собака")).first()
+    if not item:
+        item = Item(language="ru", text="собака")
+        db_session.add(item)
+        db_session.commit()
+
+    illustration = Illustration(width=800, height=600, file_size_bytes=12345)
+    db_session.add(illustration)
+    db_session.commit()
+
+    link = ItemIllustration(item_id=item.id, illustration_id=illustration.id)
+    db_session.add(link)
+    db_session.commit()
+
+    async with started_session() as (controller_ws, _, _):
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "собака"}}
+        )
+        state = await controller_ws.receive_json()
+
+        assert state["payload"]["illustration_id"] == illustration.id
+
+
+@pytest.mark.asyncio
+async def test_illustration_id_selected_from_multiple(db_session):
+    """Test that one illustration is randomly selected when item has multiple."""
+    # Create item with two illustrations
+    item = db_session.scalars(select(Item).where(Item.text == "кошка")).first()
+    if not item:
+        item = Item(language="ru", text="кошка")
+        db_session.add(item)
+        db_session.commit()
+
+    illustration1 = Illustration(width=800, height=600, file_size_bytes=12345)
+    illustration2 = Illustration(width=1024, height=768, file_size_bytes=54321)
+    db_session.add_all([illustration1, illustration2])
+    db_session.commit()
+
+    link1 = ItemIllustration(item_id=item.id, illustration_id=illustration1.id)
+    link2 = ItemIllustration(item_id=item.id, illustration_id=illustration2.id)
+    db_session.add_all([link1, link2])
+    db_session.commit()
+
+    # Add item multiple times and verify we get different illustrations
+    selected_ids = set()
+    async with started_session() as (controller_ws, _, _):
+        for _ in range(10):
+            await controller_ws.send_json(
+                {"type": "add_item", "payload": {"text": "кошка"}}
+            )
+            state = await controller_ws.receive_json()
+            selected_ids.add(state["payload"]["illustration_id"])
+
+            # Move to next if queued
+            if state["payload"]["queue"]:
+                await controller_ws.send_json({"type": "next_item"})
+                await controller_ws.receive_json()
+
+    # Should have selected both illustrations at least once
+    assert selected_ids == {illustration1.id, illustration2.id}
+
+
+@pytest.mark.asyncio
+async def test_illustration_id_changes_with_next_item(db_session):
+    """Test that illustration_id changes when advancing to next item."""
+    # Create two items with different illustrations
+    item1 = db_session.scalars(select(Item).where(Item.text == "первый")).first()
+    if not item1:
+        item1 = Item(language="ru", text="первый")
+        db_session.add(item1)
+        db_session.commit()
+
+    item2 = db_session.scalars(select(Item).where(Item.text == "второй")).first()
+    if not item2:
+        item2 = Item(language="ru", text="второй")
+        db_session.add(item2)
+        db_session.commit()
+
+    illustration1 = Illustration(width=800, height=600, file_size_bytes=12345)
+    illustration2 = Illustration(width=1024, height=768, file_size_bytes=54321)
+    db_session.add_all([illustration1, illustration2])
+    db_session.commit()
+
+    link1 = ItemIllustration(item_id=item1.id, illustration_id=illustration1.id)
+    link2 = ItemIllustration(item_id=item2.id, illustration_id=illustration2.id)
+    db_session.add_all([link1, link2])
+    db_session.commit()
+
+    async with started_session() as (controller_ws, _, _):
+        # Add first item
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "первый"}}
+        )
+        state1 = await controller_ws.receive_json()
+        assert state1["payload"]["illustration_id"] == illustration1.id
+
+        # Add second item to queue
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "второй"}}
+        )
+        await controller_ws.receive_json()
+
+        # Advance to second item
+        await controller_ws.send_json({"type": "next_item"})
+        state2 = await controller_ws.receive_json()
+
+        # Should now have illustration2
+        assert state2["payload"]["illustration_id"] == illustration2.id
+
+
+@pytest.mark.asyncio
+async def test_illustration_id_reset_on_session_end(db_session):
+    """Test that illustration_id is cleared when session ends."""
+    # Create item with illustration
+    item = db_session.scalars(select(Item).where(Item.text == "тест")).first()
+    if not item:
+        item = Item(language="ru", text="тест")
+        db_session.add(item)
+        db_session.commit()
+
+    illustration = Illustration(width=800, height=600, file_size_bytes=12345)
+    db_session.add(illustration)
+    db_session.commit()
+
+    link = ItemIllustration(item_id=item.id, illustration_id=illustration.id)
+    db_session.add(link)
+    db_session.commit()
+
+    async with started_session() as (controller_ws, _, _):
+        await controller_ws.send_json({"type": "add_item", "payload": {"text": "тест"}})
+        state1 = await controller_ws.receive_json()
+        assert state1["payload"]["illustration_id"] == illustration.id
+
+        # End session
+        await controller_ws.send_json({"type": "end_session"})
+        state2 = await controller_ws.receive_json()
+
+        # illustration_id should be cleared
+        assert state2["payload"]["illustration_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_illustration_id_none_initially():
+    """Test that illustration_id is None in initial state."""
+    async with connect_controller() as controller_ws:
+        state = await controller_ws.receive_json()
+
+        assert state["type"] == "state"
+        assert state["payload"]["illustration_id"] is None

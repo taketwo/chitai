@@ -16,6 +16,7 @@ def test_initial_state(session):
     assert session.session_id is None
     assert session.language is None
     assert session.current_session_item_id is None
+    assert session.current_illustration_id is None
     assert session.queue == []
     assert session.words == []
     assert session.current_word_index is None
@@ -104,6 +105,7 @@ def test_reset_clears_state(session):
     session.session_id = "test-session-id"
     session.language = "ru"
     session.current_session_item_id = "test-session-item-id"
+    session.current_illustration_id = "test-illustration-id"
     session.queue = ["queued-item-1", "queued-item-2"]
     session.words = ["один", "два"]
     session.current_word_index = 1
@@ -111,6 +113,7 @@ def test_reset_clears_state(session):
     assert session.session_id is None
     assert session.language is None
     assert session.current_session_item_id is None
+    assert session.current_illustration_id is None
     assert session.queue == []
     assert session.words == []
     assert session.current_word_index is None

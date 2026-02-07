@@ -22,6 +22,7 @@ class StatePayload(BaseModel):
     words: list[str]
     syllables: list[list[str]]
     current_word_index: int | None
+    illustration_id: str | None
     queue: list[SessionItemInfo]
 
 

@@ -113,6 +113,8 @@ class SessionItem(Base):
         Foreign key to Session
     item_id : str
         Foreign key to Item
+    illustration_id : str | None
+        Foreign key to Illustration (randomly selected when item displayed)
     displayed_at : datetime
         When item was shown
     completed_at : datetime | None
@@ -121,6 +123,8 @@ class SessionItem(Base):
         Related session
     item : Item
         Related item
+    illustration : Illustration | None
+        Related illustration (if item has illustrations)
     """
 
     __tablename__ = "session_items"
@@ -134,12 +138,16 @@ class SessionItem(Base):
     item_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("items.id"), nullable=False
     )
+    illustration_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("illustrations.id", ondelete="SET NULL"), nullable=True
+    )
     displayed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     session: Mapped[Session] = relationship("Session", back_populates="session_items")
     item: Mapped[Item] = relationship("Item", back_populates="session_items")
+    illustration: Mapped[Illustration | None] = relationship("Illustration")
 
 
 class Illustration(Base):

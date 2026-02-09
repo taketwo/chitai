@@ -923,3 +923,151 @@ async def test_illustration_id_none_initially():
 
         assert state["type"] == "state"
         assert state["payload"]["illustration_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_illustration_id_persisted_to_database_on_display(db_session):
+    """Test that illustration_id is saved to database when item is displayed."""
+    # Create item with illustration
+    item = Item(language="ru", text="персистент")
+    db_session.add(item)
+    db_session.commit()
+
+    illustration = Illustration(width=800, height=600, file_size_bytes=12345)
+    db_session.add(illustration)
+    db_session.commit()
+
+    link = ItemIllustration(item_id=item.id, illustration_id=illustration.id)
+    db_session.add(link)
+    db_session.commit()
+
+    async with started_session() as (controller_ws, _, session_id):
+        # Add item (displays immediately)
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "персистент"}}
+        )
+        await controller_ws.receive_json()
+
+        # Verify illustration_id was persisted to database
+        session_item = db_session.scalars(
+            select(SessionItem).where(SessionItem.session_id == session_id)
+        ).first()
+
+        assert session_item is not None
+        assert session_item.illustration_id == illustration.id
+        assert session_item.displayed_at is not None
+
+
+@pytest.mark.asyncio
+async def test_illustration_id_null_when_no_illustrations(db_session):
+    """Test that illustration_id is NULL in database when item has no illustrations."""
+    async with started_session() as (controller_ws, _, session_id):
+        # Add item without illustrations
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "без картинки"}}
+        )
+        await controller_ws.receive_json()
+
+        # Verify illustration_id is NULL in database
+        session_item = db_session.scalars(
+            select(SessionItem).where(SessionItem.session_id == session_id)
+        ).first()
+
+        assert session_item is not None
+        assert session_item.illustration_id is None
+        assert session_item.displayed_at is not None
+
+
+@pytest.mark.asyncio
+async def test_illustration_id_persisted_on_next_item(db_session):
+    """Test that illustration_id is saved when advancing to next queued item."""
+    # Create two items with illustrations
+    item1 = Item(language="ru", text="первая")
+    item2 = Item(language="ru", text="вторая")
+    db_session.add_all([item1, item2])
+    db_session.commit()
+
+    illustration1 = Illustration(width=800, height=600, file_size_bytes=12345)
+    illustration2 = Illustration(width=1024, height=768, file_size_bytes=54321)
+    db_session.add_all([illustration1, illustration2])
+    db_session.commit()
+
+    link1 = ItemIllustration(item_id=item1.id, illustration_id=illustration1.id)
+    link2 = ItemIllustration(item_id=item2.id, illustration_id=illustration2.id)
+    db_session.add_all([link1, link2])
+    db_session.commit()
+
+    async with started_session() as (controller_ws, _, session_id):
+        # Add two items (first displays, second queues)
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "первая"}}
+        )
+        await controller_ws.receive_json()
+
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "вторая"}}
+        )
+        await controller_ws.receive_json()
+
+        # Advance to next item
+        await controller_ws.send_json({"type": "next_item"})
+        await controller_ws.receive_json()
+
+        # Verify both session_items have illustration_id persisted
+        session_items = db_session.scalars(
+            select(SessionItem).where(SessionItem.session_id == session_id)
+        ).all()
+
+        assert len(session_items) == 2
+        assert session_items[0].illustration_id == illustration1.id
+        assert session_items[1].illustration_id == illustration2.id
+
+
+@pytest.mark.asyncio
+async def test_queued_item_has_no_illustration_id_until_displayed(db_session):
+    """Test that queued items don't have illustration_id until they're displayed."""
+    # Create item with illustration
+    item = Item(language="ru", text="очередь")
+    db_session.add(item)
+    db_session.commit()
+
+    illustration = Illustration(width=800, height=600, file_size_bytes=12345)
+    db_session.add(illustration)
+    db_session.commit()
+
+    link = ItemIllustration(item_id=item.id, illustration_id=illustration.id)
+    db_session.add(link)
+    db_session.commit()
+
+    async with started_session() as (controller_ws, _, session_id):
+        # Add first item (displays immediately)
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "первый без картинки"}}
+        )
+        await controller_ws.receive_json()
+
+        # Add second item (goes to queue)
+        await controller_ws.send_json(
+            {"type": "add_item", "payload": {"text": "очередь"}}
+        )
+        await controller_ws.receive_json()
+
+        # Verify queued item has NULL illustration_id
+        session_items = db_session.scalars(
+            select(SessionItem).where(SessionItem.session_id == session_id)
+        ).all()
+
+        queued_item = next(si for si in session_items if si.displayed_at is None)
+        assert queued_item.illustration_id is None
+
+        # Now advance to queued item
+        await controller_ws.send_json({"type": "next_item"})
+        await controller_ws.receive_json()
+
+        # Refresh from database
+        db_session.expire_all()
+        queued_item = db_session.get(SessionItem, queued_item.id)
+
+        # Now it should have illustration_id
+        assert queued_item.illustration_id == illustration.id
+        assert queued_item.displayed_at is not None

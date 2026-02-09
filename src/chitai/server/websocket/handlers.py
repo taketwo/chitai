@@ -201,13 +201,13 @@ async def add_item(
 
         # If nothing is currently displayed, display immediately
         if session_state.current_session_item_id is None:
+            illustration_id = _select_random_illustration(db_session, item.id)
             session_item.displayed_at = datetime.now(UTC)
+            session_item.illustration_id = illustration_id
             db_session.commit()
 
             session_state.current_session_item_id = session_item.id
-            session_state.current_illustration_id = _select_random_illustration(
-                db_session, item.id
-            )
+            session_state.current_illustration_id = illustration_id
             session_state.set_text(text)
             logger.info("Item displayed immediately: %s", item.id)
         else:
@@ -258,12 +258,6 @@ async def next_item(session_state: SessionState, clients: set[WebSocket]) -> Non
             await broadcast_state(session_state, clients)
             return
 
-        # Mark as displayed and set as current
-        next_session_item.displayed_at = datetime.now(UTC)
-        db_session.commit()
-
-        session_state.current_session_item_id = next_session_item_id
-
         # Load item text
         item = db_session.get(Item, next_session_item.item_id)
         if not item:
@@ -272,9 +266,14 @@ async def next_item(session_state: SessionState, clients: set[WebSocket]) -> Non
             await broadcast_state(session_state, clients)
             return
 
-        session_state.current_illustration_id = _select_random_illustration(
-            db_session, item.id
-        )
+        # Select illustration and mark as displayed
+        illustration_id = _select_random_illustration(db_session, item.id)
+        next_session_item.displayed_at = datetime.now(UTC)
+        next_session_item.illustration_id = illustration_id
+        db_session.commit()
+
+        session_state.current_session_item_id = next_session_item_id
+        session_state.current_illustration_id = illustration_id
         session_state.set_text(item.text)
         logger.info("Advanced to next item: %s", item.id)
 

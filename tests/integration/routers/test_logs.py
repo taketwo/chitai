@@ -40,3 +40,19 @@ class TestLogsEndpoint:
 
                 assert response.status_code == 200
                 assert response.json() == {"status": "ok"}
+
+    @pytest.mark.asyncio
+    async def test_receive_frontend_log_with_args(self):
+        """Test POST /api/logs includes args in logged message."""
+        async with http_client() as client:
+            response = await client.post(
+                "/api/logs",
+                json={
+                    "level": "error",
+                    "message": "API call failed",
+                    "args": ["status=500", "url=/api/items"],
+                },
+            )
+
+            assert response.status_code == 200
+            assert response.json() == {"status": "ok"}

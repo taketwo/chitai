@@ -1,18 +1,25 @@
 """Integration tests for /api/illustrations endpoints."""
 
+from io import BytesIO
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
+from PIL import Image
 
 from chitai.db.models import ItemIllustration
+from chitai.image_processing import ImageDownloadError
 from tests.integration.helpers import (
     FAKE_UUID,
     create_illustration,
     create_item,
+    create_test_image,
     http_client,
 )
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from sqlalchemy.orm import Session
 
 
@@ -174,6 +181,287 @@ class TestIllustrationsEndpoints:
             # Verify item still exists
             response = await client.get(f"/api/items/{item.id}")
             assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_import_illustration_from_url(self, temp_illustration_dir: Path):
+        """Test POST /api/illustrations with URL parameter."""
+        test_image = create_test_image(800, 600, "PNG")
+
+        async def mock_fetch(_url: str) -> bytes:
+            return test_image
+
+        with patch(
+            "chitai.server.routers.illustrations.fetch_image_from_url",
+            side_effect=mock_fetch,
+        ):
+            async with http_client() as client:
+                response = await client.post(
+                    "/api/illustrations",
+                    data={"url": "https://example.com/image.jpg"},
+                )
+
+                assert response.status_code == 201
+                data = response.json()
+                assert data["source_url"] == "https://example.com/image.jpg"
+                assert data["width"] == 800
+                assert data["height"] == 600
+                assert data["item_count"] == 0
+                assert "id" in data
+                assert "created_at" in data
+
+                # Verify files were created
+                illustration_id = data["id"]
+                full_image_path = temp_illustration_dir / f"{illustration_id}.webp"
+                thumbnail_path = temp_illustration_dir / f"{illustration_id}_thumb.webp"
+                assert full_image_path.exists()
+                assert thumbnail_path.exists()
+                assert full_image_path.stat().st_size > 0
+                assert thumbnail_path.stat().st_size > 0
+
+    @pytest.mark.asyncio
+    async def test_import_illustration_from_file(self, temp_illustration_dir: Path):
+        """Test POST /api/illustrations with file upload."""
+        test_image = create_test_image(1024, 768, "JPEG")
+
+        async with http_client() as client:
+            response = await client.post(
+                "/api/illustrations",
+                files={"file": ("test.jpg", BytesIO(test_image), "image/jpeg")},
+            )
+
+            assert response.status_code == 201
+            data = response.json()
+            assert data["source_url"] is None
+            assert data["width"] == 1024
+            assert data["height"] == 768
+            assert data["item_count"] == 0
+
+            # Verify files were created
+            illustration_id = data["id"]
+            full_image_path = temp_illustration_dir / f"{illustration_id}.webp"
+            thumbnail_path = temp_illustration_dir / f"{illustration_id}_thumb.webp"
+            assert full_image_path.exists()
+            assert thumbnail_path.exists()
+            assert full_image_path.stat().st_size > 0
+            assert thumbnail_path.stat().st_size > 0
+
+    @pytest.mark.asyncio
+    async def test_import_illustration_both_params_error(self):
+        """Test POST /api/illustrations rejects both url and file."""
+        test_image = create_test_image(800, 600)
+
+        async with http_client() as client:
+            response = await client.post(
+                "/api/illustrations",
+                data={"url": "https://example.com/image.jpg"},
+                files={"file": ("test.jpg", BytesIO(test_image), "image/jpeg")},
+            )
+
+            assert response.status_code == 400
+            assert "Cannot provide both" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_import_illustration_neither_param_error(self):
+        """Test POST /api/illustrations rejects neither url nor file."""
+        async with http_client() as client:
+            response = await client.post("/api/illustrations")
+
+            assert response.status_code == 400
+            assert "Must provide either" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_import_illustration_invalid_file_type(self):
+        """Test POST /api/illustrations rejects non-image files."""
+        async with http_client() as client:
+            response = await client.post(
+                "/api/illustrations",
+                files={"file": ("test.txt", BytesIO(b"not an image"), "text/plain")},
+            )
+
+            assert response.status_code == 400
+            assert "Invalid content type" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_import_illustration_invalid_image_data(self):
+        """Test POST /api/illustrations handles invalid image data."""
+
+        async def mock_fetch(_url: str) -> bytes:
+            return b"not a valid image"
+
+        with patch(
+            "chitai.server.routers.illustrations.fetch_image_from_url",
+            side_effect=mock_fetch,
+        ):
+            async with http_client() as client:
+                response = await client.post(
+                    "/api/illustrations",
+                    data={"url": "https://example.com/invalid.jpg"},
+                )
+
+                assert response.status_code == 400
+                assert "detail" in response.json()
+
+    @pytest.mark.asyncio
+    async def test_import_illustration_download_error(self):
+        """Test POST /api/illustrations handles download errors."""
+
+        async def mock_fetch(_url: str) -> bytes:
+            msg = "Failed to download image"
+            raise ImageDownloadError(msg)
+
+        with patch(
+            "chitai.server.routers.illustrations.fetch_image_from_url",
+            side_effect=mock_fetch,
+        ):
+            async with http_client() as client:
+                response = await client.post(
+                    "/api/illustrations",
+                    data={"url": "https://example.com/error.jpg"},
+                )
+
+                assert response.status_code == 400
+                assert "Failed to download" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_import_illustration_timeout(self):
+        """Test POST /api/illustrations handles timeout."""
+
+        async def timeout_fetch(_url: str) -> bytes:
+            msg = "Request timed out"
+            raise TimeoutError(msg)
+
+        with patch(
+            "chitai.server.routers.illustrations.fetch_image_from_url",
+            side_effect=timeout_fetch,
+        ):
+            async with http_client() as client:
+                response = await client.post(
+                    "/api/illustrations",
+                    data={"url": "https://example.com/slow.jpg"},
+                )
+
+                assert response.status_code == 400
+                assert "timed out" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_import_illustration_resizes_large_images(
+        self,
+        temp_illustration_dir: Path,
+    ):
+        """Test import resizes large images to max dimension."""
+        test_image = create_test_image(2400, 1800, "PNG")
+
+        async def mock_fetch(_url: str) -> bytes:
+            return test_image
+
+        with patch(
+            "chitai.server.routers.illustrations.fetch_image_from_url",
+            side_effect=mock_fetch,
+        ):
+            async with http_client() as client:
+                response = await client.post(
+                    "/api/illustrations",
+                    data={"url": "https://example.com/large.jpg"},
+                )
+
+                assert response.status_code == 201
+                data = response.json()
+                # Default max dimension is 1200
+                assert data["width"] == 1200
+                assert data["height"] == 900
+
+                # Verify files were created and are smaller than original
+                illustration_id = data["id"]
+                full_image_path = temp_illustration_dir / f"{illustration_id}.webp"
+                thumbnail_path = temp_illustration_dir / f"{illustration_id}_thumb.webp"
+                assert full_image_path.exists()
+                assert thumbnail_path.exists()
+
+                # Verify actual image dimensions from file
+
+                with Image.open(full_image_path) as img:
+                    assert img.size == (1200, 900)
+                with Image.open(thumbnail_path) as img:
+                    # Thumbnail should be even smaller (max 200px)
+                    assert max(img.size) == 200
+
+    @pytest.mark.asyncio
+    async def test_get_illustration_image(
+        self, db_session: Session, temp_illustration_dir: Path
+    ):
+        """Test GET /api/illustrations/{id}/image serves image file."""
+        illustration = create_illustration(db_session)
+        illustration_id = str(illustration.id)
+
+        # Create a test image file
+        test_image = create_test_image(800, 600)
+        illustration_path = temp_illustration_dir / f"{illustration_id}.webp"
+        illustration_path.write_bytes(test_image)
+
+        async with http_client() as client:
+            response = await client.get(f"/api/illustrations/{illustration_id}/image")
+
+            assert response.status_code == 200
+            assert response.headers["content-type"] == "image/webp"
+            assert "Cache-Control" in response.headers
+            assert "max-age=31536000" in response.headers["Cache-Control"]
+            assert len(response.content) > 0
+
+    @pytest.mark.asyncio
+    async def test_get_illustration_thumbnail(
+        self, db_session: Session, temp_illustration_dir: Path
+    ):
+        """Test GET /api/illustrations/{id}/thumbnail serves thumbnail file."""
+        illustration = create_illustration(db_session)
+        illustration_id = str(illustration.id)
+
+        # Create a test thumbnail file
+        test_image = create_test_image(200, 150)
+        thumbnail_path = temp_illustration_dir / f"{illustration_id}_thumb.webp"
+        thumbnail_path.write_bytes(test_image)
+
+        async with http_client() as client:
+            response = await client.get(
+                f"/api/illustrations/{illustration_id}/thumbnail"
+            )
+
+            assert response.status_code == 200
+            assert response.headers["content-type"] == "image/webp"
+            assert "Cache-Control" in response.headers
+            assert len(response.content) > 0
+
+    @pytest.mark.asyncio
+    async def test_get_illustration_image_not_found(self):
+        """Test GET /api/illustrations/{id}/image returns 404."""
+        async with http_client() as client:
+            response = await client.get(f"/api/illustrations/{FAKE_UUID}/image")
+
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Illustration not found"
+
+    @pytest.mark.asyncio
+    async def test_get_illustration_image_file_missing(self, db_session: Session):
+        """Test GET /api/illustrations/{id}/image returns 404 when file is missing."""
+        illustration = create_illustration(db_session)
+
+        async with http_client() as client:
+            response = await client.get(f"/api/illustrations/{illustration.id}/image")
+
+            assert response.status_code == 404
+            assert "file not found" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_get_illustration_thumbnail_file_missing(self, db_session: Session):
+        """Test GET /api/illustrations/{id}/thumbnail returns 404."""
+        illustration = create_illustration(db_session)
+
+        async with http_client() as client:
+            response = await client.get(
+                f"/api/illustrations/{illustration.id}/thumbnail"
+            )
+
+            assert response.status_code == 404
+            assert "Thumbnail file not found" in response.json()["detail"]
 
 
 class TestItemIllustrationLinking:

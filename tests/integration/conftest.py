@@ -1,5 +1,7 @@
 """Pytest configuration for integration tests."""
 
+import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -10,6 +12,7 @@ from sqlalchemy.pool import StaticPool
 from chitai.db.base import Base
 from chitai.db.engine import configure_session_factory
 from chitai.server.app import app
+from chitai.settings import settings
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -102,3 +105,24 @@ def use_test_db(test_db: sessionmaker[Session]):
     configure_session_factory(test_db)
     yield
     configure_session_factory(None)  # Reset to default
+
+
+@pytest.fixture
+def temp_illustration_dir() -> Generator[Path]:
+    """Provide temporary directory for illustration files.
+
+    Creates a temporary directory and configures settings to use it for illustration
+    storage during tests. Automatically cleans up after the test.
+
+    Yields
+    ------
+    Path
+        Path to temporary illustration directory
+
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        original_dir = settings.illustration_dir
+        settings.illustration_dir = str(tmp_path)
+        yield tmp_path
+        settings.illustration_dir = original_dir

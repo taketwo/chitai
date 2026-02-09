@@ -2,11 +2,13 @@
 
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from datetime import UTC, datetime
+from io import BytesIO
 from typing import TYPE_CHECKING
 
 from httpx import AsyncClient
 from httpx_ws import aconnect_ws
 from httpx_ws.transport import ASGIWebSocketTransport
+from PIL import Image
 
 from chitai.db.models import Illustration, Item, SessionItem
 from chitai.db.models import Session as DBSession
@@ -21,6 +23,30 @@ if TYPE_CHECKING:
 # Test constants
 FAKE_UUID = "00000000-0000-0000-0000-000000000000"
 DEFAULT_LANGUAGE = "ru"
+
+
+def create_test_image(width: int, height: int, image_format: str = "PNG") -> bytes:
+    """Create a test image in memory.
+
+    Parameters
+    ----------
+    width : int
+        Image width in pixels
+    height : int
+        Image height in pixels
+    image_format : str
+        Image format (PNG, JPEG, etc.)
+
+    Returns
+    -------
+    bytes
+        Image data as bytes
+
+    """
+    image = Image.new("RGB", (width, height), color="red")
+    output = BytesIO()
+    image.save(output, format=image_format)
+    return output.getvalue()
 
 
 @asynccontextmanager

@@ -11,7 +11,7 @@ Six tables: `items`, `sessions`, `session_items`, `settings`, `illustrations`, `
 
 **Session** is one reading practice run. It records start/end timestamps and the language. A session with `ended_at = NULL` is either still active or was abandoned (server restarted mid-session — sessions do not survive restarts).
 
-**SessionItem** is the join between a session and an item, with timestamps that track the item's lifecycle within that session. `displayed_at` is NULL for items that are still in the queue and have not yet been shown. `completed_at` is NULL for items that were displayed but never explicitly advanced past. See [websocket-protocol.md](websocket-protocol.md) for the full lifecycle.
+**SessionItem** is the join between a session and an item, with timestamps that track the item's lifecycle within that session. `displayed_at` is NULL for items that are still in the queue and have not yet been shown. `completed_at` is NULL for items that were displayed but never explicitly advanced past. `illustration_id` is the randomly selected illustration that was shown when the item was displayed — it is NULL for queued items (not yet selected) and for items without illustrations. See [websocket-protocol.md](websocket-protocol.md) for the full lifecycle.
 
 **Settings** is a single-row table (id is always 1) with display preferences. These are persisted but not yet wired to the API or the frontend — the display currently reads defaults from client-side state. This will change in v0.8.
 
@@ -30,7 +30,7 @@ These fields are planned but not implemented. Do not add them to the model witho
 
 Deleting an **Item** cascade-deletes its **SessionItem** and **ItemIllustration** rows (the item disappears from session histories and loses illustration links, but illustrations remain for other items). Deleting a **Session** cascade-deletes its **SessionItem** rows but leaves the **Item** rows intact — items are reusable across sessions.
 
-Deleting an **Illustration** cascade-deletes its **ItemIllustration** rows and removes the corresponding files from disk (`{id}.webp` and `{id}_thumb.webp`). Items lose the association but remain intact.
+Deleting an **Illustration** cascade-deletes its **ItemIllustration** rows and removes the corresponding files from disk (`{id}.webp` and `{id}_thumb.webp`). Items lose the association but remain intact. **SessionItem** rows that reference the deleted illustration have their `illustration_id` set to NULL — the session history remains, but the record of which illustration was shown is lost.
 
 ## Migrations
 

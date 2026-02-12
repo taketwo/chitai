@@ -8,7 +8,7 @@ This module defines the SQLAlchemy ORM models for the application:
 """
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String
@@ -22,7 +22,7 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-class Language(str, Enum):
+class Language(StrEnum):
     """Supported languages for text processing."""
 
     RUSSIAN = "ru"

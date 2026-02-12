@@ -334,7 +334,7 @@ select.input-field {
 .info-label {
   font-weight: 600;
   color: var(--admin-text-muted);
-  min-width: 120px;
+  min-width: 150px;
 }
 
 .info-value {
@@ -488,6 +488,42 @@ select.input-field {
   height: 130px;
   object-fit: contain;
   border-radius: var(--radius-sm);
+}
+
+/* Session items table */
+
+.session-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.session-items-table thead tr {
+  background-color: var(--admin-content-bg-alt);
+}
+
+.session-items-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 600;
+  color: var(--admin-text);
+  border-bottom: 1px solid var(--admin-border);
+  font-size: 13px;
+}
+
+.session-items-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--admin-border);
+  font-size: 14px;
+  color: var(--admin-text);
+}
+
+.session-items-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.session-items-table tbody tr:hover {
+  background-color: var(--admin-content-bg-alt);
 }
 
 /* Utility */

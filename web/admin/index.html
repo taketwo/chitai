@@ -222,7 +222,10 @@
             </thead>
             <tbody>
               <template x-for="session in sessions" :key="session.id">
-                <tr>
+                <tr
+                  class="clickable-row"
+                  @click="openSessionModal(session, $event)"
+                >
                   <td x-text="formatDate(session.started_at)"></td>
                   <td
                     x-text="formatDuration(session.started_at, session.ended_at)"
@@ -231,7 +234,7 @@
                   <td class="delete-cell">
                     <button
                       class="delete-btn"
-                      @click="deleteSession(session.id)"
+                      @click.stop="deleteSession(session.id)"
                       title="Delete session"
                     >
                       <svg class="icon">
@@ -457,6 +460,112 @@
                 </template>
               </div>
             </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- Session Detail Modal -->
+      <div
+        x-show="sessionModalVisible"
+        @click.self="closeSessionModal"
+        @keydown.escape.window="closeSessionModal"
+        class="modal-overlay"
+      >
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Session Details</h3>
+            <button @click="closeSessionModal" class="close-btn">
+              <svg class="icon">
+                <use href="/web/icons.svg#x-mark"></use>
+              </svg>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <!-- Session Info -->
+            <div class="item-info-section">
+              <div class="info-row">
+                <span class="info-label">Date:</span>
+                <span
+                  class="info-value"
+                  x-text="formatDate(modalSession?.started_at)"
+                ></span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Duration:</span>
+                <span
+                  class="info-value"
+                  x-text="formatDuration(modalSession?.started_at, modalSession?.ended_at)"
+                ></span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Language:</span>
+                <span class="info-value" x-text="modalSession?.language"></span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Items:</span>
+                <span
+                  class="info-value"
+                  x-text="modalSessionItems.length"
+                ></span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Characters read:</span>
+                <span
+                  class="info-value"
+                  x-text="getTotalCharacters().toLocaleString()"
+                ></span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Reading speed:</span>
+                <span
+                  class="info-value"
+                  x-text="`${getCharactersPerMinute()} CPM`"
+                ></span>
+              </div>
+            </div>
+
+            <!-- Session Items -->
+            <div class="linked-section">
+              <h4>Items Read</h4>
+              <template x-if="modalSessionItems.length === 0">
+                <p class="placeholder">No items in this session.</p>
+              </template>
+              <template x-if="modalSessionItems.length > 0">
+                <table class="session-items-table">
+                  <thead>
+                    <tr>
+                      <th>Text</th>
+                      <th>Status</th>
+                      <th>Duration</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="item in modalSessionItems" :key="item.id">
+                      <tr>
+                        <td x-text="item.text"></td>
+                        <td
+                          x-text="item.completed_at ? 'Completed' : 'Abandoned'"
+                        ></td>
+                        <td x-text="formatItemTime(item)"></td>
+                        <td class="delete-cell">
+                          <button
+                            class="delete-btn"
+                            @click="deleteSessionItem(item.id)"
+                            title="Delete item from session"
+                          >
+                            <svg class="icon">
+                              <use href="/web/icons.svg#trash"></use>
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </template>
+            </div>
           </div>
         </div>
       </div>

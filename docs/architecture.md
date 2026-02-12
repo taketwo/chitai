@@ -35,11 +35,22 @@ Phone (controller)          Tablet (display)         Laptop (admin)
 - **SQLite persists what matters for history.** What is ephemeral (current word index, syllables) and what is persisted (items, session timestamps, queue membership) is documented in [websocket-protocol.md](websocket-protocol.md).
 - **All connections are TLS.** A self-signed certificate is generated on first container start. Clients connect via `wss://`.
 
+## REST vs. WebSocket — domain boundary
+
+The two interfaces serve different domains:
+
+- **REST** mutates **library entities** — Items, Illustrations, Settings. These are reusable across sessions and have no real-time coordination needs.
+- **WebSocket** mutates **session entities** — Session, SessionItems, ephemeral state (current word index, queue). These require real-time broadcast to all connected clients.
+
+The rule: **look at the primary entity being mutated.** If it's a library entity, it goes through REST. If it's a session entity, it goes through WebSocket. A WebSocket handler should never create or modify library entities, even as a convenience.
+
+In practice this means the controller sometimes makes two calls: a REST call to resolve or create an item, then a WebSocket message to add it to the session queue. The pattern of "REST to resolve data, WebSocket to act on it" keeps the domains cleanly separated.
+
 ## What lives where
 
 | Concern                          | Where to look                                    |
 |----------------------------------|--------------------------------------------------|
-| Session state & lifecycle        | [websocket-protocol.md](websocket-protocol.md)  |
+| Session state & lifecycle        | [websocket-protocol.md](websocket-protocol.md)   |
 | Database schema & migrations     | [data-model.md](data-model.md)                   |
 | Frontend conventions & gotchas   | [frontend.md](frontend.md)                       |
 | Docker, CI/CD, env vars          | [deployment.md](deployment.md)                   |

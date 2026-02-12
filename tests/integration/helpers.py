@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from io import BytesIO
 from typing import TYPE_CHECKING
 
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from httpx_ws import aconnect_ws
 from httpx_ws.transport import ASGIWebSocketTransport
 from PIL import Image
@@ -247,3 +247,38 @@ def create_illustration(
     db_session.add(illustration)
     db_session.commit()
     return illustration
+
+
+async def send_add_item(
+    ws: AsyncWebSocketSession, text: str, language: str = DEFAULT_LANGUAGE
+) -> None:
+    """Send add_item message via WebSocket using the two-step flow.
+
+    First creates or gets the item via REST API, then sends the WebSocket message with
+    the item_id.
+
+    Parameters
+    ----------
+    ws : AsyncWebSocketSession
+        WebSocket session to send through
+    text : str
+        Item text to add
+    language : str
+        Item language (defaults to DEFAULT_LANGUAGE)
+
+    """
+    # Create or get item via REST API
+    async with (
+        ASGITransport(app=app) as transport,
+        AsyncClient(transport=transport, base_url="http://test") as client,
+    ):
+        response = await client.post(
+            "/api/items",
+            data={"text": text, "language": language},
+        )
+        response.raise_for_status()
+        item_data = response.json()
+        item_id = item_data["id"]
+
+    # Send WebSocket message
+    await ws.send_json({"type": "add_item", "payload": {"item_id": item_id}})

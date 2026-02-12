@@ -51,7 +51,7 @@ class EndSessionMessage(BaseModel):
 class AddItemPayload(BaseModel):
     """Payload for add_item message."""
 
-    text: str
+    item_id: str
 
 
 class AddItemMessage(BaseModel):

@@ -74,7 +74,7 @@ async def handle_message(websocket: WebSocket, data: dict) -> None:
     elif message.type == "end_session":
         await end_session(session_state, clients)
     elif message.type == "add_item":
-        await add_item(session_state, clients, message.payload.text)
+        await add_item(session_state, clients, message.payload.item_id)
     elif message.type == "next_item":
         await next_item(session_state, clients)
     elif message.type == "advance_word":
@@ -147,12 +147,14 @@ async def end_session(
 
 
 async def add_item(
-    session_state: SessionState, clients: set[WebSocket], text: str
+    session_state: SessionState, clients: set[WebSocket], item_id: str
 ) -> None:
-    """Add a text item to the session.
+    """Add an item to the session queue.
 
-    Creates or retrieves an Item and creates a new SessionItem. If no item is currently
-    displayed, displays the new item immediately. Otherwise, adds it to the queue.
+    Creates a new SessionItem for the given item_id. If no item is currently displayed,
+    displays the new item immediately. Otherwise, adds it to the queue.
+
+    The item must already exist in the database (created via REST API).
 
     Parameters
     ----------
@@ -160,8 +162,8 @@ async def add_item(
         The session state
     clients : set[WebSocket]
         Connected clients to broadcast to
-    text : str
-        The text to add
+    item_id : str
+        The UUID of the item to add to the session
 
     """
     if session_state.session_id is None:
@@ -179,16 +181,11 @@ async def add_item(
             await broadcast_state(session_state, clients)
             return
 
-        language = db_session_obj.language
-
-        # Check if item already exists
-        item = db_session.scalars(
-            select(Item).where(Item.text == text, Item.language == language)
-        ).first()
+        # Fetch the item
+        item = db_session.get(Item, item_id)
         if not item:
-            item = Item(text=text, language=language)
-            db_session.add(item)
-            db_session.flush()  # Get the item ID
+            logger.error("Item not found in database: %s", item_id)
+            return
 
         # Create SessionItem (not displayed yet)
         session_item = SessionItem(
@@ -208,7 +205,7 @@ async def add_item(
 
             session_state.current_session_item_id = session_item.id
             session_state.current_illustration_id = illustration_id
-            session_state.set_text(text)
+            session_state.set_text(item.text)
             logger.info("Item displayed immediately: %s", item.id)
         else:
             # Otherwise, add to queue

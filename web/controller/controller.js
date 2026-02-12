@@ -123,23 +123,58 @@ function controllerApp() {
       });
     },
 
-    submitAndShow() {
+    async submitAndShow() {
       const text = this.textInput.trim();
       if (!text) return;
 
-      this.ws.send({ type: "add_item", payload: { text } });
+      const itemId = await this.resolveItem(text);
+      if (!itemId) return;
+
+      this.ws.send({ type: "add_item", payload: { item_id: itemId } });
       this.ws.send({ type: "next_item" });
       this.textInput = "";
       this.suggestions = [];
     },
 
-    submitToQueue() {
+    async submitToQueue() {
       const text = this.textInput.trim();
       if (!text) return;
 
-      this.ws.send({ type: "add_item", payload: { text } });
+      const itemId = await this.resolveItem(text);
+      if (!itemId) return;
+
+      this.ws.send({ type: "add_item", payload: { item_id: itemId } });
       this.textInput = "";
       this.suggestions = [];
+    },
+
+    async resolveItem(text) {
+      if (!this.sessionLanguage) {
+        console.error("Cannot resolve item: no session language");
+        return null;
+      }
+
+      try {
+        const formData = new FormData();
+        formData.append("text", text);
+        formData.append("language", this.sessionLanguage);
+
+        const response = await fetch("/api/items", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          console.error("Failed to resolve item:", response.status);
+          return null;
+        }
+
+        const data = await response.json();
+        return data.id;
+      } catch (error) {
+        console.error("Error resolving item:", error);
+        return null;
+      }
     },
 
     handleEnter(event) {

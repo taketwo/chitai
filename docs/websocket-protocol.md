@@ -35,19 +35,19 @@ The server pushes state after every mutation. Shape (see `StatePayload` in `prot
 
 This is the most important behavioral detail in the protocol. `null` means two different things depending on context:
 
-| `words` is empty | `current_word_index` | Meaning                                      |
-|------------------|----------------------|----------------------------------------------|
-| yes              | null                 | No item is loaded. Session may or may not be active. |
+| `words` is empty | `current_word_index` | Meaning                                                                                                                |
+|------------------|----------------------|------------------------------------------------------------------------------------------------------------------------|
+| yes              | null                 | No item is loaded. Session may or may not be active.                                                                   |
 | no               | null                 | The current item is **completed**. Words are still present so the display can show the full text without highlighting. |
 
 The completed state is a **one-way door**: you cannot navigate backward out of it with `advance_word`. The only way forward is `next_item` (if the queue is non-empty) or adding a new item.
 
 ## Item lifecycle within a session
 
-An item moves through these states. The transitions that touch the database are marked.
+An item moves through these states. The transitions that touch the database are marked. Note that the item must already exist in the library before `add_item` is sent — the client resolves or creates the item via the REST API first, then passes the `item_id` over WebSocket.
 
 ```
-add_item
+add_item (item_id)
     │
     ▼
 ┌─────────┐   (no current item)   ┌───────────┐
@@ -77,15 +77,15 @@ The countdown duration is `CHITAI_GRACE_PERIOD_SECONDS` (default 3600). See `src
 
 This is the cross-cutting concern that's hardest to reconstruct from code alone, because the reads and writes are spread across `handlers.py`, `session.py`, and `models.py`.
 
-| Runtime field            | Persisted?                     | Where in DB                        |
-|--------------------------|--------------------------------|------------------------------------|
-| session_id               | Yes, on `start_session`        | `sessions.id`                      |
-| current_session_item_id  | Yes, on display                | `session_items.displayed_at`       |
-| queue membership         | Yes, on `add_item`             | `session_items` with `displayed_at = NULL` |
-| illustration_id          | Yes, on display                | `session_items.illustration_id`    |
-| current_word_index       | Never                          | Ephemeral                          |
-| words                    | Never (derived from item text) | Ephemeral                          |
-| syllables                | Never (computed on broadcast)  | Ephemeral                          |
+| Runtime field            | Persisted?                     | Where in DB                                |
+|--------------------------|--------------------------------|--------------------------------------------|
+| session_id               | Yes, on `start_session`        | `sessions.id`                              |
+| current_session_item_id  | Yes, on display                | `session_items.displayed_at`               |
+| queue membership         | Yes, on `add_item` (by item_id)| `session_items` with `displayed_at = NULL` |
+| illustration_id          | Yes, on display                | `session_items.illustration_id`            |
+| current_word_index       | Never                          | Ephemeral                                  |
+| words                    | Never (derived from item text) | Ephemeral                                  |
+| syllables                | Never (computed on broadcast)  | Ephemeral                                  |
 
 `syllables` is a computed property on `SessionState` — it calls `syllabify()` on `words` every time it is accessed. Nothing syllabification-related is stored.
 

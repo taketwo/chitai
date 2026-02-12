@@ -13,6 +13,7 @@ from .helpers import (
     connect_clients,
     connect_controller,
     connect_display,
+    send_add_item,
     started_session,
 )
 
@@ -35,12 +36,7 @@ async def test_display_connection():
 async def test_controller_sets_state():
     """Test that controller can set text state and receives state broadcast."""
     async with started_session() as (controller_ws, _, _):
-        await controller_ws.send_json(
-            {
-                "type": "add_item",
-                "payload": {"text": "молоко хлеб"},
-            }
-        )
+        await send_add_item(controller_ws, "молоко хлеб")
         data = await controller_ws.receive_json()
         assert data["type"] == "state"
         assert data["payload"]["words"] == ["молоко", "хлеб"]
@@ -64,12 +60,7 @@ async def test_display_receives_state():
 async def test_controller_to_display_flow():
     """Test basic flow: controller sends text, display receives it."""
     async with started_session() as (controller_ws, display_ws, _):
-        await controller_ws.send_json(
-            {
-                "type": "add_item",
-                "payload": {"text": "привет мир"},
-            }
-        )
+        await send_add_item(controller_ws, "привет мир")
 
         data = await display_ws.receive_json()
         assert data["type"] == "state"
@@ -81,9 +72,7 @@ async def test_controller_to_display_flow():
 async def test_advance_word_forward():
     """Test advancing to next word broadcasts state."""
     async with started_session() as (controller_ws, display_ws, _):
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "один два три"}}
-        )
+        await send_add_item(controller_ws, "один два три")
         await display_ws.receive_json()  # State after add_item
 
         await controller_ws.send_json({"type": "advance_word", "payload": {"delta": 1}})
@@ -97,9 +86,7 @@ async def test_advance_word_forward():
 async def test_advance_word_backward():
     """Test going back to previous word broadcasts state."""
     async with started_session() as (controller_ws, display_ws, _):
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "один два три"}}
-        )
+        await send_add_item(controller_ws, "один два три")
         await display_ws.receive_json()  # State after add_item
 
         await controller_ws.send_json({"type": "advance_word", "payload": {"delta": 1}})
@@ -231,9 +218,7 @@ async def test_reconnecting_client_receives_current_state():
 async def test_add_item_creates_item_and_session_item(db_session):
     """Test that add_item creates Item and SessionItem in database."""
     async with started_session() as (controller_ws, _, session_id):
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "молоко"}}
-        )
+        await send_add_item(controller_ws, "молоко")
         await controller_ws.receive_json()  # state broadcast
 
         # Verify Item was created
@@ -260,10 +245,10 @@ async def test_add_item_reuses_existing_item(db_session):
     """Test that add_item reuses existing Item with same text."""
     async with started_session() as (controller_ws, _, session_id):
         # Add same item twice
-        await controller_ws.send_json({"type": "add_item", "payload": {"text": "хлеб"}})
+        await send_add_item(controller_ws, "хлеб")
         await controller_ws.receive_json()
 
-        await controller_ws.send_json({"type": "add_item", "payload": {"text": "хлеб"}})
+        await send_add_item(controller_ws, "хлеб")
         await controller_ws.receive_json()
 
         # Verify only one Item was created
@@ -285,9 +270,7 @@ async def test_add_item_queues_when_item_displayed(db_session):
     """Test that adding item when one is displayed adds to queue."""
     async with started_session() as (controller_ws, _, session_id):
         # Add first item
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "первый"}}
-        )
+        await send_add_item(controller_ws, "первый")
         state = await controller_ws.receive_json()
         assert state["payload"]["queue"] == []
 
@@ -305,9 +288,7 @@ async def test_add_item_queues_when_item_displayed(db_session):
         session_item1_id = session_item1.id
 
         # Add second item
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "второй"}}
-        )
+        await send_add_item(controller_ws, "второй")
         state = await controller_ws.receive_json()
 
         # Verify first SessionItem is still active (not completed)
@@ -337,16 +318,16 @@ async def test_next_item_advances_through_queue(db_session):
     """Test that next_item advances through queued items."""
     async with started_session() as (controller_ws, _, session_id):
         # Add three items
-        await controller_ws.send_json({"type": "add_item", "payload": {"text": "один"}})
+        await send_add_item(controller_ws, "один")
         state = await controller_ws.receive_json()
         assert state["payload"]["words"] == ["один"]
         assert len(state["payload"]["queue"]) == 0
 
-        await controller_ws.send_json({"type": "add_item", "payload": {"text": "два"}})
+        await send_add_item(controller_ws, "два")
         state = await controller_ws.receive_json()
         assert len(state["payload"]["queue"]) == 1
 
-        await controller_ws.send_json({"type": "add_item", "payload": {"text": "три"}})
+        await send_add_item(controller_ws, "три")
         state = await controller_ws.receive_json()
         assert len(state["payload"]["queue"]) == 2
 
@@ -393,7 +374,7 @@ async def test_next_item_with_empty_queue():
     """Test that next_item with empty queue does nothing."""
     async with started_session() as (controller_ws, _, _):
         # Add one item
-        await controller_ws.send_json({"type": "add_item", "payload": {"text": "один"}})
+        await send_add_item(controller_ws, "один")
         state = await controller_ws.receive_json()
         assert state["payload"]["words"] == ["один"]
 
@@ -415,10 +396,10 @@ async def test_end_session_does_not_complete_items(db_session):
     """
     async with started_session() as (controller_ws, _, session_id):
         # Add two items (first displayed, second queued)
-        await controller_ws.send_json({"type": "add_item", "payload": {"text": "один"}})
+        await send_add_item(controller_ws, "один")
         await controller_ws.receive_json()
 
-        await controller_ws.send_json({"type": "add_item", "payload": {"text": "два"}})
+        await send_add_item(controller_ws, "два")
         await controller_ws.receive_json()
 
         # End session without advancing
@@ -454,22 +435,30 @@ async def test_end_session_does_not_complete_items(db_session):
 
 @pytest.mark.asyncio
 async def test_add_item_without_session_is_ignored(db_session):
-    """Test that add_item without active session is ignored."""
+    """Test that add_item without active session is ignored.
+
+    The item is created via REST API, but the WebSocket add_item message
+    is ignored because there's no active session, so no SessionItem is created.
+    """
     async with connect_controller() as controller_ws:
         await controller_ws.receive_json()  # Initial state
 
         # Try to add item without starting session
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "молоко"}}
-        )
+        await send_add_item(controller_ws, "молоко")
 
         # Should not receive state broadcast (ignored)
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(controller_ws.receive_json(), timeout=0.1)
 
-        # Verify no Item was created
+        # Item was created via REST, but no SessionItem exists
         items = db_session.scalars(select(Item).where(Item.text == "молоко")).all()
-        assert len(items) == 0
+        assert len(items) == 1
+
+        # Verify no SessionItem was created
+        session_items = db_session.scalars(
+            select(SessionItem).where(SessionItem.item_id == items[0].id)
+        ).all()
+        assert len(session_items) == 0
 
 
 @pytest.mark.asyncio
@@ -483,9 +472,7 @@ async def test_add_item_with_missing_database_session_resets_state(db_session):
         db_session.commit()
 
         # Try to add an item - should trigger the missing session error path
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "молоко"}}
-        )
+        await send_add_item(controller_ws, "молоко")
 
         # Should receive state broadcast with reset state
         controller_data = await controller_ws.receive_json()
@@ -509,9 +496,7 @@ async def test_grace_period_auto_ends_inactive_session(db_session):
     app.state.context.grace_timer.grace_period_seconds = 0.1
 
     async with started_session() as (controller_ws, _, session_id):
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "молоко"}}
-        )
+        await send_add_item(controller_ws, "молоко")
         await controller_ws.receive_json()
 
     # Session should still be active, regardless of client disconnection
@@ -557,26 +542,20 @@ async def test_complete_session_flow_end_to_end(db_session):  # noqa: PLR0915
     """
     async with started_session() as (controller_ws, _, session_id):
         # Build a queue with three items
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "черепаха ползёт"}}
-        )
+        await send_add_item(controller_ws, "черепаха ползёт")
         state = await controller_ws.receive_json()
 
         assert state["payload"]["words"] == ["черепаха", "ползёт"]
         assert state["payload"]["current_word_index"] == 0
         assert len(state["payload"]["queue"]) == 0
 
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "мама готовит обед"}}
-        )
+        await send_add_item(controller_ws, "мама готовит обед")
         state = await controller_ws.receive_json()
 
         assert len(state["payload"]["queue"]) == 1
         assert state["payload"]["queue"][0]["text"] == "мама готовит обед"
 
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "солнце светит"}}
-        )
+        await send_add_item(controller_ws, "солнце светит")
         state = await controller_ws.receive_json()
 
         assert len(state["payload"]["queue"]) == 2
@@ -702,9 +681,7 @@ async def test_completed_state_flow():
     """
     async with started_session() as (controller_ws, _, _):
         # Add first item
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "один два три"}}
-        )
+        await send_add_item(controller_ws, "один два три")
         state = await controller_ws.receive_json()
 
         assert state["payload"]["words"] == ["один", "два", "три"]
@@ -737,9 +714,7 @@ async def test_completed_state_flow():
             await asyncio.wait_for(controller_ws.receive_json(), timeout=0.1)
 
         # Add item to queue while in completed state
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "новый текст"}}
-        )
+        await send_add_item(controller_ws, "новый текст")
         state = await controller_ws.receive_json()
 
         # Should still be in completed state, with new item in queue
@@ -762,9 +737,7 @@ async def test_completed_state_flow():
 async def test_illustration_id_none_when_item_has_no_illustrations():
     """Test that illustration_id is None when item has no illustrations."""
     async with started_session() as (controller_ws, _, _):
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "молоко"}}
-        )
+        await send_add_item(controller_ws, "молоко")
         state = await controller_ws.receive_json()
 
         assert state["payload"]["illustration_id"] is None
@@ -789,9 +762,7 @@ async def test_illustration_id_populated_when_item_has_illustration(db_session):
     db_session.commit()
 
     async with started_session() as (controller_ws, _, _):
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "собака"}}
-        )
+        await send_add_item(controller_ws, "собака")
         state = await controller_ws.receive_json()
 
         assert state["payload"]["illustration_id"] == illustration.id
@@ -821,9 +792,7 @@ async def test_illustration_id_selected_from_multiple(db_session):
     selected_ids = set()
     async with started_session() as (controller_ws, _, _):
         for _ in range(10):
-            await controller_ws.send_json(
-                {"type": "add_item", "payload": {"text": "кошка"}}
-            )
+            await send_add_item(controller_ws, "кошка")
             state = await controller_ws.receive_json()
             selected_ids.add(state["payload"]["illustration_id"])
 
@@ -864,16 +833,12 @@ async def test_illustration_id_changes_with_next_item(db_session):
 
     async with started_session() as (controller_ws, _, _):
         # Add first item
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "первый"}}
-        )
+        await send_add_item(controller_ws, "первый")
         state1 = await controller_ws.receive_json()
         assert state1["payload"]["illustration_id"] == illustration1.id
 
         # Add second item to queue
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "второй"}}
-        )
+        await send_add_item(controller_ws, "второй")
         await controller_ws.receive_json()
 
         # Advance to second item
@@ -903,7 +868,7 @@ async def test_illustration_id_reset_on_session_end(db_session):
     db_session.commit()
 
     async with started_session() as (controller_ws, _, _):
-        await controller_ws.send_json({"type": "add_item", "payload": {"text": "тест"}})
+        await send_add_item(controller_ws, "тест")
         state1 = await controller_ws.receive_json()
         assert state1["payload"]["illustration_id"] == illustration.id
 
@@ -943,9 +908,7 @@ async def test_illustration_id_persisted_to_database_on_display(db_session):
 
     async with started_session() as (controller_ws, _, session_id):
         # Add item (displays immediately)
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "персистент"}}
-        )
+        await send_add_item(controller_ws, "персистент")
         await controller_ws.receive_json()
 
         # Verify illustration_id was persisted to database
@@ -963,9 +926,7 @@ async def test_illustration_id_null_when_no_illustrations(db_session):
     """Test that illustration_id is NULL in database when item has no illustrations."""
     async with started_session() as (controller_ws, _, session_id):
         # Add item without illustrations
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "без картинки"}}
-        )
+        await send_add_item(controller_ws, "без картинки")
         await controller_ws.receive_json()
 
         # Verify illustration_id is NULL in database
@@ -999,14 +960,10 @@ async def test_illustration_id_persisted_on_next_item(db_session):
 
     async with started_session() as (controller_ws, _, session_id):
         # Add two items (first displays, second queues)
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "первая"}}
-        )
+        await send_add_item(controller_ws, "первая")
         await controller_ws.receive_json()
 
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "вторая"}}
-        )
+        await send_add_item(controller_ws, "вторая")
         await controller_ws.receive_json()
 
         # Advance to next item
@@ -1041,15 +998,11 @@ async def test_queued_item_has_no_illustration_id_until_displayed(db_session):
 
     async with started_session() as (controller_ws, _, session_id):
         # Add first item (displays immediately)
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "первый без картинки"}}
-        )
+        await send_add_item(controller_ws, "первый без картинки")
         await controller_ws.receive_json()
 
         # Add second item (goes to queue)
-        await controller_ws.send_json(
-            {"type": "add_item", "payload": {"text": "очередь"}}
-        )
+        await send_add_item(controller_ws, "очередь")
         await controller_ws.receive_json()
 
         # Verify queued item has NULL illustration_id

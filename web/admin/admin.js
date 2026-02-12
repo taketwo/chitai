@@ -31,6 +31,11 @@ function adminApp() {
     illustrationModalVisible: false,
     modalIllustration: null,
 
+    // Session modal state
+    sessionModalVisible: false,
+    modalSession: null,
+    modalSessionItems: [],
+
     async init() {
       this.loadTabFromHash();
       window.addEventListener("hashchange", () => this.loadTabFromHash());
@@ -160,6 +165,15 @@ function adminApp() {
       const hours = String(date.getHours()).padStart(2, "0");
       const minutes = String(date.getMinutes()).padStart(2, "0");
       return `${month} ${day}, ${hours}:${minutes}`;
+    },
+
+    formatTime(dateString) {
+      if (!dateString) return "—";
+
+      const date = new Date(dateString);
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      return `${hours}:${minutes}`;
     },
 
     formatDuration(startedAt, endedAt) {
@@ -349,6 +363,95 @@ function adminApp() {
     closeIllustrationModal() {
       this.illustrationModalVisible = false;
       this.modalIllustration = null;
+    },
+
+    // Session modal
+
+    async openSessionModal(session, event) {
+      if (event.target.closest(".delete-btn")) return;
+
+      try {
+        const response = await fetch(`/api/sessions/${session.id}`);
+        const sessionDetail = await response.json();
+
+        this.modalSession = sessionDetail;
+        this.modalSessionItems = sessionDetail.items;
+        this.sessionModalVisible = true;
+      } catch (error) {
+        console.error("Failed to fetch session details:", error);
+      }
+    },
+
+    closeSessionModal() {
+      this.sessionModalVisible = false;
+      this.modalSession = null;
+      this.modalSessionItems = [];
+    },
+
+    // Session derived values
+
+    getCompletedItems() {
+      return this.modalSessionItems.filter(
+        (item) => item.completed_at !== null,
+      );
+    },
+
+    getTotalCharacters() {
+      const completedItems = this.getCompletedItems();
+      return completedItems.reduce((total, item) => {
+        const chars = item.text.replace(/\s/g, "").length;
+        return total + chars;
+      }, 0);
+    },
+
+    getCharactersPerMinute() {
+      const completedItems = this.getCompletedItems();
+      if (completedItems.length === 0) return 0;
+
+      const totalChars = this.getTotalCharacters();
+      const totalMs = completedItems.reduce((total, item) => {
+        const displayedAt = new Date(item.displayed_at);
+        const completedAt = new Date(item.completed_at);
+        return total + (completedAt - displayedAt);
+      }, 0);
+
+      const totalMinutes = totalMs / 60000;
+      if (totalMinutes === 0) return 0;
+
+      return Math.round(totalChars / totalMinutes);
+    },
+
+    formatItemTime(item) {
+      if (!item.completed_at) return "—";
+
+      const displayedAt = new Date(item.displayed_at);
+      const completedAt = new Date(item.completed_at);
+      const durationMs = completedAt - displayedAt;
+      const seconds = Math.round(durationMs / 1000);
+
+      if (seconds < 60) return `${seconds}s`;
+
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      return remainingSeconds > 0
+        ? `${minutes}m ${remainingSeconds}s`
+        : `${minutes}m`;
+    },
+
+    async deleteSessionItem(sessionItemId) {
+      if (!confirm("Delete this item from session history?")) {
+        return;
+      }
+
+      const success = await this.handleDelete(
+        `/api/sessions/${this.modalSession.id}/items/${sessionItemId}`,
+        "session item",
+      );
+      if (success) {
+        this.modalSessionItems = this.modalSessionItems.filter(
+          (item) => item.id !== sessionItemId,
+        );
+      }
     },
 
     // Illustration picker

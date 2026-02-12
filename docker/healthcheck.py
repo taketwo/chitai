@@ -23,7 +23,7 @@ def main() -> None:
         ) as response:
             if response.status != http.HTTPStatus.OK:
                 sys.exit(1)
-    except (OSError, urllib.error.URLError):
+    except OSError, urllib.error.URLError:
         sys.exit(1)
 
 

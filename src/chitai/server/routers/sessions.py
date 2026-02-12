@@ -157,3 +157,54 @@ async def delete_session(
     db.commit()
 
     return {"status": "deleted"}
+
+
+@router.delete("/{session_id}/items/{session_item_id}")
+async def delete_session_item(
+    session_id: str,
+    session_item_id: str,
+    db: Annotated[Session, Depends(get_session)],
+) -> dict[str, str]:
+    """Delete a session item from a session.
+
+    Parameters
+    ----------
+    session_id : str
+        Session UUID
+    session_item_id : str
+        SessionItem UUID
+    db : Session
+        Database session (injected)
+
+    Returns
+    -------
+    dict[str, str]
+        Success status
+
+    Raises
+    ------
+    HTTPException
+        404 if session or session item not found, or if session item does not belong to
+        the specified session
+
+    """
+    # Verify session exists
+    session = db.get(DBSession, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify session item exists and belongs to this session
+    session_item = db.get(SessionItem, session_item_id)
+    if not session_item:
+        raise HTTPException(status_code=404, detail="Session item not found")
+
+    if session_item.session_id != session_id:
+        raise HTTPException(
+            status_code=404,
+            detail="Session item does not belong to this session",
+        )
+
+    db.delete(session_item)
+    db.commit()
+
+    return {"status": "deleted"}

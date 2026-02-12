@@ -150,3 +150,79 @@ class TestSessionsEndpoints:
             assert response.status_code == 200
             assert response.json()["usage_count"] == 0
             assert response.json()["last_used_at"] is None
+
+    @pytest.mark.asyncio
+    async def test_delete_session_item(self, db_session: Session):
+        """Test DELETE /api/sessions/{id}/items/{item_id} deletes session item."""
+        session = create_session(db_session)
+        item1 = create_item(db_session, "первый")
+        item2 = create_item(db_session, "второй")
+
+        session_item1 = create_session_item(db_session, session.id, item1.id)
+        create_session_item(db_session, session.id, item2.id)
+
+        async with http_client() as client:
+            # Delete first session item
+            response = await client.delete(
+                f"/api/sessions/{session.id}/items/{session_item1.id}"
+            )
+
+            assert response.status_code == 200
+            assert response.json() == {"status": "deleted"}
+
+            # Verify session still has second item
+            response = await client.get(f"/api/sessions/{session.id}")
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["items"]) == 1
+            assert data["items"][0]["text"] == "второй"
+
+    @pytest.mark.asyncio
+    async def test_delete_session_item_session_not_found(self, db_session: Session):
+        """Test DELETE returns 404 when session doesn't exist."""
+        item = create_item(db_session, "элемент")
+        session = create_session(db_session)
+        session_item = create_session_item(db_session, session.id, item.id)
+
+        async with http_client() as client:
+            response = await client.delete(
+                f"/api/sessions/{FAKE_UUID}/items/{session_item.id}"
+            )
+
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Session not found"
+
+    @pytest.mark.asyncio
+    async def test_delete_session_item_not_found(self, db_session: Session):
+        """Test DELETE returns 404 when session item doesn't exist."""
+        session = create_session(db_session)
+
+        async with http_client() as client:
+            response = await client.delete(
+                f"/api/sessions/{session.id}/items/{FAKE_UUID}"
+            )
+
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Session item not found"
+
+    @pytest.mark.asyncio
+    async def test_delete_session_item_wrong_session(self, db_session: Session):
+        """Test DELETE returns 404 when session item belongs to different session."""
+        session1 = create_session(db_session)
+        session2 = create_session(db_session)
+        item = create_item(db_session, "элемент")
+
+        # Create session item for session2
+        session_item = create_session_item(db_session, session2.id, item.id)
+
+        async with http_client() as client:
+            # Try to delete it via session1
+            response = await client.delete(
+                f"/api/sessions/{session1.id}/items/{session_item.id}"
+            )
+
+            assert response.status_code == 404
+            assert (
+                response.json()["detail"]
+                == "Session item does not belong to this session"
+            )

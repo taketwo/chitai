@@ -107,7 +107,7 @@ class TestItemsEndpoints:
 
     @pytest.mark.asyncio
     async def test_create_item_duplicate(self):
-        """Test POST /api/items returns 409 for duplicate text and language."""
+        """Test POST /api/items is idempotent - returns existing item with 200."""
         async with http_client() as client:
             # Create initial item
             response = await client.post(
@@ -115,14 +115,20 @@ class TestItemsEndpoints:
                 data={"text": "дубликат", "language": "ru"},
             )
             assert response.status_code == 201
+            first_item = response.json()
 
-            # Attempt to create duplicate
+            # Create duplicate - should return existing item with 200
             response = await client.post(
                 "/api/items",
                 data={"text": "дубликат", "language": "ru"},
             )
-            assert response.status_code == 409
-            assert "already exists" in response.json()["detail"]
+            assert response.status_code == 200
+            second_item = response.json()
+
+            # Should be the same item
+            assert first_item["id"] == second_item["id"]
+            assert second_item["text"] == "дубликат"
+            assert second_item["language"] == "ru"
 
     @pytest.mark.asyncio
     async def test_create_item_empty_text(self):

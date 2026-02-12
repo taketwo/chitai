@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException
+from fastapi import APIRouter, Depends, Form, HTTPException, Response
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session  # noqa: TC002
@@ -20,14 +20,17 @@ from chitai.server.routers.schemas import (
 router = APIRouter(prefix="/api/items", tags=["items"])
 
 
-@router.post("", response_model=ItemResponse, status_code=201)
-async def create_item(
+@router.post("", response_model=ItemResponse)
+async def get_or_create_item(
     text: Annotated[str, Form()],
     language: Annotated[Language, Form()],
+    response: Response,
     *,
     db: Annotated[Session, Depends(get_session)],
 ) -> ItemResponse:
-    """Create a new item.
+    """Get existing item or create a new one (idempotent).
+
+    Returns 200 with existing item if found, 201 with new item if created.
 
     Parameters
     ----------
@@ -38,47 +41,56 @@ async def create_item(
     db : Session
         Database session (injected)
 
-    Returns
-    -------
-    ItemResponse
-        The newly created item
-
     Raises
     ------
     HTTPException
         400 if text is empty or only whitespace
-        409 if item with same text and language already exists
 
     """
-    # Validate text
-    if not text.strip():
+    normalized_text = text.strip()
+    if not normalized_text:
         raise HTTPException(status_code=400, detail="Text cannot be empty")
 
-    # Create item
-    item = Item(
-        text=text.strip(),
-        language=language,
-    )
-    db.add(item)
+    usage_count = 0
+    last_used_at = None
 
-    try:
+    # Try to find existing item
+    item = db.scalars(
+        select(Item).where(Item.text == normalized_text, Item.language == language)
+    ).first()
+
+    if item:
+        # Fetch usage stats for existing item
+        item_query = (
+            select(
+                Item,
+                func.count(SessionItem.id).label("usage_count"),
+                func.max(SessionItem.displayed_at).label("last_used_at"),
+            )
+            .outerjoin(SessionItem, Item.id == SessionItem.item_id)
+            .where(Item.id == item.id)
+            .group_by(Item.id)
+        )
+
+        if result := db.execute(item_query).first():
+            _, usage_count, last_used_at = result
+
+        response.status_code = 200
+    else:
+        # Create new item
+        item = Item(text=normalized_text, language=language)
+        db.add(item)
         db.commit()
-    except IntegrityError as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="Item with this text and language already exists",
-        ) from e
-
-    db.refresh(item)
+        db.refresh(item)
+        response.status_code = 201
 
     return ItemResponse(
         id=item.id,
         text=item.text,
         language=item.language,
         created_at=item.created_at,
-        usage_count=0,
-        last_used_at=None,
+        usage_count=usage_count,
+        last_used_at=last_used_at,
     )
 
 

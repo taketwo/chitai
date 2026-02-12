@@ -350,12 +350,13 @@ async def test_next_item_advances_through_queue(db_session):
         await controller_ws.send_json({"type": "next_item"})
         state = await controller_ws.receive_json()
 
-        # Verify first item completed, second item displayed
+        # Verify first item NOT completed (never advanced past last word), second item
+        # displayed
         db_session.expire_all()
         session_item1 = db_session.get(SessionItem, session_item1.id)
         session_item2 = db_session.get(SessionItem, session_item2.id)
 
-        assert session_item1.completed_at is not None
+        assert session_item1.completed_at is None
         assert session_item2.displayed_at is not None
         assert session_item2.completed_at is None
         assert state["payload"]["words"] == ["два"]
@@ -583,6 +584,12 @@ async def test_complete_session_flow_end_to_end(db_session):  # noqa: PLR0915
 
         assert state["payload"]["current_word_index"] == 1
 
+        # Complete first item by advancing past last word
+        await controller_ws.send_json({"type": "advance_word", "payload": {"delta": 1}})
+        state = await controller_ws.receive_json()
+
+        assert state["payload"]["current_word_index"] is None
+
         # Advance to next item in queue
         await controller_ws.send_json({"type": "next_item"})
         state = await controller_ws.receive_json()
@@ -600,6 +607,12 @@ async def test_complete_session_flow_end_to_end(db_session):  # noqa: PLR0915
         state = await controller_ws.receive_json()
 
         assert state["payload"]["current_word_index"] == 2
+
+        # Complete second item by advancing past last word
+        await controller_ws.send_json({"type": "advance_word", "payload": {"delta": 1}})
+        state = await controller_ws.receive_json()
+
+        assert state["payload"]["current_word_index"] is None
 
         # Advance to third item
         await controller_ws.send_json({"type": "next_item"})

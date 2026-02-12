@@ -223,8 +223,8 @@ async def add_item(
 async def next_item(session_state: SessionState, clients: set[WebSocket]) -> None:
     """Advance to the next item in the queue.
 
-    Completes the current SessionItem and pops the next item from the queue.
-    If the queue is empty, logs a warning and does nothing.
+    Pops the next item from the queue and displays it. If the queue is empty, logs a
+    warning and does nothing.
 
     Parameters
     ----------
@@ -240,12 +240,6 @@ async def next_item(session_state: SessionState, clients: set[WebSocket]) -> Non
         return
 
     with get_session_ctx() as db_session:
-        # Complete current SessionItem if exists
-        if session_state.current_session_item_id:
-            current = db_session.get(SessionItem, session_state.current_session_item_id)
-            if current:
-                current.completed_at = datetime.now(UTC)
-
         # Pop next SessionItem from queue
         next_session_item_id = session_state.queue.pop(0)
         next_session_item = db_session.get(SessionItem, next_session_item_id)
@@ -293,4 +287,18 @@ async def advance_word(
 
     """
     if session_state.advance_word(delta):
+        # If item just became completed, persist to database
+        if session_state.current_word_index is None:
+            with get_session_ctx() as db_session:
+                if session_state.current_session_item_id:
+                    current = db_session.get(
+                        SessionItem, session_state.current_session_item_id
+                    )
+                    if current:
+                        current.completed_at = datetime.now(UTC)
+                        db_session.commit()
+                        logger.info(
+                            "Item completed: %s", session_state.current_session_item_id
+                        )
+
         await broadcast_state(session_state, clients)

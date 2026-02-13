@@ -123,19 +123,6 @@ function controllerApp() {
       });
     },
 
-    async submitAndShow() {
-      const text = this.textInput.trim();
-      if (!text) return;
-
-      const itemId = await this.resolveItem(text);
-      if (!itemId) return;
-
-      this.ws.send({ type: "add_item", payload: { item_id: itemId } });
-      this.ws.send({ type: "next_item" });
-      this.textInput = "";
-      this.suggestions = [];
-    },
-
     async submitToQueue() {
       const text = this.textInput.trim();
       if (!text) return;
@@ -179,7 +166,7 @@ function controllerApp() {
 
     handleEnter(event) {
       if (!event.shiftKey) {
-        this.submitAndShow();
+        this.submitToQueue();
       }
     },
 

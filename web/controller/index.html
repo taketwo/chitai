@@ -57,7 +57,7 @@
           </button>
         </div>
 
-        <div class="queue-items" x-show="queue.length > 0">
+        <div class="queue-items">
           <template x-for="item in queue" :key="item.session_item_id">
             <div class="item-panel queue-item">
               <div class="drag-handle">
@@ -68,48 +68,58 @@
               <div class="queue-item-text" x-text="item.text"></div>
             </div>
           </template>
-        </div>
 
-        <div class="input-group">
-          <div class="input-wrapper">
-            <textarea
-              x-model="textInput"
-              placeholder="Enter text..."
-              @keydown.enter.prevent="handleEnter"
-              @input.debounce.200ms="fetchSuggestions()"
-              @blur="suggestions = []"
-            ></textarea>
-            <div
-              class="autocomplete-suggestions"
-              x-show="suggestions.length > 0"
-            >
-              <template x-for="suggestion in suggestions" :key="suggestion.id">
-                <button
-                  type="button"
-                  class="autocomplete-suggestion"
-                  @mousedown.prevent="selectSuggestion(suggestion.text)"
-                  x-text="suggestion.text"
-                ></button>
-              </template>
+          <!-- Virtual input item -->
+          <div class="item-panel queue-item input-item">
+            <div class="drag-handle"></div>
+            <div class="input-wrapper">
+              <textarea
+                rows="1"
+                x-model="textInput"
+                placeholder="Enter text..."
+                @keydown.enter.prevent="handleEnter"
+                @input.debounce.200ms="fetchSuggestions()"
+                @blur="suggestions = []"
+              ></textarea>
+              <div
+                class="autocomplete-suggestions"
+                x-show="suggestions.length > 0"
+              >
+                <template
+                  x-for="suggestion in suggestions"
+                  :key="suggestion.id"
+                >
+                  <button
+                    type="button"
+                    class="autocomplete-suggestion"
+                    @mousedown.prevent="selectSuggestion(suggestion.text)"
+                    x-text="suggestion.text"
+                  ></button>
+                </template>
+              </div>
             </div>
-          </div>
-          <div class="button-group">
             <button
-              class="end-session-btn"
-              :disabled="!connected"
-              @click="endSession"
-            >
-              <svg class="icon">
-                <use href="/web/icons.svg#arrow-left-start-on-rectangle"></use>
-              </svg>
-            </button>
-            <button
+              class="enqueue-btn"
               :disabled="!sessionActive || !textInput.trim()"
               @click="submitToQueue"
             >
-              Enqueue
+              <svg class="icon">
+                <use href="/web/icons.svg#arrow-turn-right-up"></use>
+              </svg>
             </button>
           </div>
+        </div>
+
+        <div class="end-session-panel">
+          <button
+            class="end-session-btn"
+            :disabled="!connected"
+            @click="endSession"
+          >
+            <svg class="icon">
+              <use href="/web/icons.svg#arrow-left-start-on-rectangle"></use>
+            </svg>
+          </button>
         </div>
       </div>
     </div>

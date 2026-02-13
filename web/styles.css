@@ -104,39 +104,38 @@ body.controller {
   min-width: 200px;
 }
 
-.controller .input-group {
-  background: var(--color-white);
-  padding: 20px;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow);
-}
-
 .controller .input-wrapper {
   position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
 }
 
 .controller textarea {
   width: 100%;
   padding: 12px;
   font-size: 18px;
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  resize: vertical;
-  min-height: 100px;
+  border: none;
+  resize: none;
   font-family: inherit;
+  background: transparent;
+  color: var(--color-text);
 }
 
 .controller textarea:focus {
   outline: none;
-  border-color: var(--color-primary);
+}
+
+.controller textarea::placeholder {
+  color: var(--color-text-muted);
 }
 
 .controller .autocomplete-suggestions {
   position: absolute;
-  top: 100%;
+  bottom: 100%;
   left: 0;
   right: 0;
-  margin-top: 4px;
+  margin-bottom: 4px;
   background: var(--color-white);
   border: 2px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -173,23 +172,23 @@ body.controller {
   background: var(--color-gray-medium);
 }
 
-.controller .button-group {
-  display: flex;
-  gap: 12px;
+.controller .end-session-panel {
+  background: var(--color-white);
+  padding: 20px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
   margin-top: 12px;
+  display: flex;
+  justify-content: center;
 }
 
-.controller .button-group .end-session-btn {
-  flex: 0 0 52px;
+.controller .end-session-panel .end-session-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0;
-}
-
-.controller .button-group button:not(.end-session-btn) {
-  flex: 1;
-  margin: 0;
+  gap: 8px;
+  padding: 12px 24px;
+  width: auto;
 }
 
 /* Current word controls */
@@ -327,11 +326,41 @@ body.controller {
   overflow-wrap: break-word;
 }
 
-.controller .queue-item:first-child .queue-item-text {
+.controller .queue-item:first-child:not(.input-item) .queue-item-text {
   border-top-right-radius: var(--radius-md);
 }
 
-.controller .queue-item:last-child .queue-item-text {
+.controller .queue-item:last-child:not(.input-item) .queue-item-text {
+  border-bottom-right-radius: var(--radius-md);
+}
+
+/* Input item (virtual queue item) */
+.controller .queue-item.input-item .drag-handle {
+  cursor: default;
+}
+
+.controller .queue-item.input-item .input-wrapper {
+  background: var(--color-white);
+  min-height: 60px;
+}
+
+.controller .queue-item.input-item:first-child .input-wrapper {
+  border-top-right-radius: var(--radius-md);
+}
+
+.controller .queue-item.input-item .enqueue-btn {
+  flex: 0 0 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+  transition: background 0.2s;
+}
+
+.controller .queue-item.input-item:last-child .enqueue-btn {
   border-bottom-right-radius: var(--radius-md);
 }
 

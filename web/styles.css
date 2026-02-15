@@ -525,7 +525,12 @@ body.display {
   margin: 0 0.15em;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 600px) {
+  .display .container {
+    padding: 20px;
+    gap: 20px;
+  }
+
   .display #textDisplay {
     font-size: 36px;
   }

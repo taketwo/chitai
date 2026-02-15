@@ -1,4 +1,9 @@
 function displayApp() {
+  // Constants
+  const MIN_FONT_SIZE = 20;
+  const MAX_FONT_SCALE_ATTEMPTS = 5;
+  const FONT_SCALE_SAFETY_FACTOR = 0.95;
+
   return {
     // State
     words: [],
@@ -32,6 +37,13 @@ function displayApp() {
 
       this.updateOrientation();
       window.addEventListener("resize", () => this.updateOrientation());
+
+      // Watch for text changes and adjust font size
+      this.$watch("words", () => {
+        this.$nextTick(() => {
+          this.adjustTextFontSize();
+        });
+      });
     },
 
     get hasWords() {
@@ -148,6 +160,44 @@ function displayApp() {
 
       // Apply highlight after text has settled
       this.currentWordIndex = currentWordIndex ?? null;
+    },
+
+    adjustTextFontSize() {
+      const textDisplay = document.getElementById("textDisplay");
+      const textPanel = textDisplay?.parentElement;
+      if (!textDisplay || !textPanel) return;
+
+      // Reset to CSS-computed font size (respects media queries)
+      textDisplay.style.fontSize = "";
+      const defaultFontSize = parseFloat(
+        window.getComputedStyle(textDisplay).fontSize,
+      );
+
+      requestAnimationFrame(() => {
+        const availableHeight = textPanel.clientHeight;
+        let contentHeight = textDisplay.scrollHeight;
+
+        if (contentHeight <= availableHeight) return;
+
+        let fontSize = defaultFontSize;
+        let attempts = 0;
+
+        while (
+          contentHeight > availableHeight &&
+          attempts < MAX_FONT_SCALE_ATTEMPTS &&
+          fontSize > MIN_FONT_SIZE
+        ) {
+          const scaleFactor = availableHeight / contentHeight;
+          fontSize = Math.max(
+            Math.floor(fontSize * scaleFactor * FONT_SCALE_SAFETY_FACTOR),
+            MIN_FONT_SIZE,
+          );
+
+          textDisplay.style.fontSize = `${fontSize}px`;
+          contentHeight = textDisplay.scrollHeight;
+          attempts++;
+        }
+      });
     },
   };
 }

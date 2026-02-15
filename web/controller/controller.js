@@ -5,6 +5,7 @@ function controllerApp() {
     sessionLanguage: null,
     textInput: "",
     suggestions: [],
+    autocompletePosition: "above",
     words: [],
     currentWordIndex: null,
     queue: [],
@@ -220,7 +221,14 @@ function controllerApp() {
         }
 
         const data = await response.json();
-        this.suggestions = data.suggestions || [];
+        const newSuggestions = data.suggestions || [];
+
+        // Update position before showing suggestions to avoid flicker
+        if (newSuggestions.length > 0) {
+          this.updateAutocompletePosition();
+        }
+
+        this.suggestions = newSuggestions;
       } catch (error) {
         console.error("Autocomplete error:", error);
         this.suggestions = [];
@@ -230,6 +238,24 @@ function controllerApp() {
     selectSuggestion(text) {
       this.textInput = text;
       this.suggestions = [];
+    },
+
+    updateAutocompletePosition() {
+      const textarea = this.$refs.textInput;
+      if (!textarea) return;
+
+      const rect = textarea.getBoundingClientRect();
+
+      // Use visualViewport if available, fallback to window.innerHeight
+      const viewportHeight = window.visualViewport
+        ? window.visualViewport.height
+        : window.innerHeight;
+
+      const spaceAbove = rect.top;
+      const spaceBelow = viewportHeight - rect.bottom;
+
+      // Show suggestions where there's more space
+      this.autocompletePosition = spaceBelow > spaceAbove ? "below" : "above";
     },
   };
 }

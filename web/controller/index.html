@@ -74,6 +74,7 @@
             <div class="drag-handle"></div>
             <div class="input-wrapper">
               <textarea
+                x-ref="textInput"
                 rows="1"
                 x-model="textInput"
                 placeholder="Enter text..."
@@ -83,6 +84,7 @@
               ></textarea>
               <div
                 class="autocomplete-suggestions"
+                :class="'autocomplete-' + autocompletePosition"
                 x-show="suggestions.length > 0"
               >
                 <template

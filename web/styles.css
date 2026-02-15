@@ -285,7 +285,7 @@ body.controller {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow);
   margin-bottom: 12px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .controller .queue-item {

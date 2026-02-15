@@ -1,4 +1,10 @@
 function controllerApp() {
+  // Constants
+  const DEFAULT_WORD_FONT_SIZE = 24;
+  const MIN_WORD_FONT_SIZE = 12;
+  const MAX_FONT_SCALE_ATTEMPTS = 3;
+  const FONT_SCALE_SAFETY_FACTOR = 0.95;
+
   return {
     connected: false,
     sessionActive: false,
@@ -88,38 +94,31 @@ function controllerApp() {
       const currentWordEl = this.$refs.currentWord;
       if (!currentWordEl) return;
 
-      const DEFAULT_FONT_SIZE = 24;
-      const MIN_FONT_SIZE = 12;
-      const MAX_ATTEMPTS = 3;
-      const SCALE_SAFETY_FACTOR = 0.95;
+      currentWordEl.style.fontSize = `${DEFAULT_WORD_FONT_SIZE}px`;
 
-      // Reset to default font size
-      currentWordEl.style.fontSize = `${DEFAULT_FONT_SIZE}px`;
-
-      // Need a slight delay for browser to reflow
       requestAnimationFrame(() => {
         const containerWidth = currentWordEl.offsetWidth;
         let textWidth = currentWordEl.scrollWidth;
 
-        if (textWidth > containerWidth) {
-          let fontSize = DEFAULT_FONT_SIZE;
-          let attempts = 0;
+        if (textWidth <= containerWidth) return;
 
-          while (
-            textWidth > containerWidth &&
-            attempts < MAX_ATTEMPTS &&
-            fontSize > MIN_FONT_SIZE
-          ) {
-            // Calculate new font size based on current measurements
-            const scaleFactor = containerWidth / textWidth;
-            fontSize = Math.floor(fontSize * scaleFactor * SCALE_SAFETY_FACTOR);
-            fontSize = Math.max(fontSize, MIN_FONT_SIZE);
+        let fontSize = DEFAULT_WORD_FONT_SIZE;
+        let attempts = 0;
 
-            // Apply and re-measure
-            currentWordEl.style.fontSize = `${fontSize}px`;
-            textWidth = currentWordEl.scrollWidth;
-            attempts++;
-          }
+        while (
+          textWidth > containerWidth &&
+          attempts < MAX_FONT_SCALE_ATTEMPTS &&
+          fontSize > MIN_WORD_FONT_SIZE
+        ) {
+          const scaleFactor = containerWidth / textWidth;
+          fontSize = Math.max(
+            Math.floor(fontSize * scaleFactor * FONT_SCALE_SAFETY_FACTOR),
+            MIN_WORD_FONT_SIZE,
+          );
+
+          currentWordEl.style.fontSize = `${fontSize}px`;
+          textWidth = currentWordEl.scrollWidth;
+          attempts++;
         }
       });
     },

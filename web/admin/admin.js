@@ -64,26 +64,7 @@ function adminApp() {
       try {
         const response = await fetch("/api/items");
         const data = await response.json();
-
-        const itemsWithCounts = await Promise.all(
-          data.items.map(async (item) => {
-            try {
-              const illustrationsResponse = await fetch(
-                `/api/items/${item.id}/illustrations`,
-              );
-              const illustrations = await illustrationsResponse.json();
-              return { ...item, illustration_count: illustrations.length };
-            } catch (error) {
-              console.error(
-                `Failed to fetch illustrations for item ${item.id}:`,
-                error,
-              );
-              return { ...item, illustration_count: 0 };
-            }
-          }),
-        );
-
-        this.items = itemsWithCounts;
+        this.items = data.items;
       } catch (error) {
         console.error("Failed to fetch items:", error);
       }

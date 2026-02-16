@@ -9,6 +9,7 @@ from chitai.db.models import Item
 from tests.integration.helpers import (
     DEFAULT_LANGUAGE,
     FAKE_UUID,
+    create_illustration,
     create_item,
     create_session,
     create_session_item,
@@ -285,6 +286,91 @@ class TestItemsEndpoints:
             response = await client.get(f"/api/sessions/{session.id}")
             assert response.status_code == 200
             assert len(response.json()["items"]) == 0
+
+    @pytest.mark.asyncio
+    async def test_list_items_includes_illustration_count(self, db_session: Session):
+        """Test GET /api/items returns illustration_count for each item."""
+        # Create items
+        item_with_illustrations = create_item(db_session, "с картинками")  # noqa: RUF001
+        create_item(db_session, "без картинок")
+
+        # Add illustrations to first item
+        ill1 = create_illustration(db_session)
+        ill2 = create_illustration(db_session)
+        link1 = ItemIllustration(
+            item_id=item_with_illustrations.id, illustration_id=ill1.id
+        )
+        link2 = ItemIllustration(
+            item_id=item_with_illustrations.id, illustration_id=ill2.id
+        )
+        db_session.add_all([link1, link2])
+        db_session.commit()
+
+        async with http_client() as client:
+            response = await client.get("/api/items")
+
+            assert response.status_code == 200
+            data = response.json()
+            items_by_text = {item["text"]: item for item in data["items"]}
+
+            assert items_by_text["с картинками"]["illustration_count"] == 2  # noqa: RUF001
+            assert items_by_text["без картинок"]["illustration_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_get_item_includes_illustration_count(self, db_session: Session):
+        """Test GET /api/items/{id} returns illustration_count."""
+        item = create_item(db_session, "тестовый")
+
+        # Add illustrations
+        ill1 = create_illustration(db_session)
+        ill2 = create_illustration(db_session)
+        link1 = ItemIllustration(item_id=item.id, illustration_id=ill1.id)
+        link2 = ItemIllustration(item_id=item.id, illustration_id=ill2.id)
+        db_session.add_all([link1, link2])
+        db_session.commit()
+
+        async with http_client() as client:
+            response = await client.get(f"/api/items/{item.id}")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["illustration_count"] == 2
+
+    @pytest.mark.asyncio
+    async def test_create_item_returns_illustration_count(self):
+        """Test POST /api/items returns illustration_count (0 for new items)."""
+        async with http_client() as client:
+            response = await client.post(
+                "/api/items",
+                data={"text": "новый", "language": "ru"},
+            )
+
+            assert response.status_code == 201
+            data = response.json()
+            assert data["illustration_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_get_existing_item_returns_illustration_count(
+        self, db_session: Session
+    ):
+        """Test POST /api/items (get existing) returns correct illustration_count."""
+        item = create_item(db_session, "существующий")
+
+        # Add illustrations
+        ill = create_illustration(db_session)
+        link = ItemIllustration(item_id=item.id, illustration_id=ill.id)
+        db_session.add(link)
+        db_session.commit()
+
+        async with http_client() as client:
+            response = await client.post(
+                "/api/items",
+                data={"text": "существующий", "language": "ru"},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["illustration_count"] == 1
 
 
 class TestItemsAutocompleteEndpoint:

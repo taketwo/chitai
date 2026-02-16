@@ -53,6 +53,7 @@ async def get_or_create_item(
 
     usage_count = 0
     last_used_at = None
+    illustration_count = 0
 
     # Try to find existing item
     item = db.scalars(
@@ -60,20 +61,22 @@ async def get_or_create_item(
     ).first()
 
     if item:
-        # Fetch usage stats for existing item
+        # Fetch usage stats and illustration count for existing item
         item_query = (
             select(
                 Item,
-                func.count(SessionItem.id).label("usage_count"),
+                func.count(SessionItem.id.distinct()).label("usage_count"),
                 func.max(SessionItem.displayed_at).label("last_used_at"),
+                func.count(ItemIllustration.id.distinct()).label("illustration_count"),
             )
             .outerjoin(SessionItem, Item.id == SessionItem.item_id)
+            .outerjoin(ItemIllustration, Item.id == ItemIllustration.item_id)
             .where(Item.id == item.id)
             .group_by(Item.id)
         )
 
         if result := db.execute(item_query).first():
-            _, usage_count, last_used_at = result
+            _, usage_count, last_used_at, illustration_count = result
 
         response.status_code = 200
     else:
@@ -91,15 +94,16 @@ async def get_or_create_item(
         created_at=item.created_at,
         usage_count=usage_count,
         last_used_at=last_used_at,
+        illustration_count=illustration_count,
     )
 
 
 @router.get("", response_model=ItemListResponse)
 async def list_items(db: Annotated[Session, Depends(get_session)]) -> ItemListResponse:
-    """List all items with usage statistics.
+    """List all items with usage statistics and illustration counts.
 
-    Returns all items in the database, enriched with usage count and last used
-    timestamp from session history.
+    Returns all items in the database, enriched with usage count, last used
+    timestamp, and illustration count.
 
     Parameters
     ----------
@@ -115,10 +119,12 @@ async def list_items(db: Annotated[Session, Depends(get_session)]) -> ItemListRe
     items_query = (
         select(
             Item,
-            func.count(SessionItem.id).label("usage_count"),
+            func.count(SessionItem.id.distinct()).label("usage_count"),
             func.max(SessionItem.displayed_at).label("last_used_at"),
+            func.count(ItemIllustration.id.distinct()).label("illustration_count"),
         )
         .outerjoin(SessionItem, Item.id == SessionItem.item_id)
+        .outerjoin(ItemIllustration, Item.id == ItemIllustration.item_id)
         .group_by(Item.id)
         .order_by(Item.created_at.desc())
     )
@@ -133,8 +139,9 @@ async def list_items(db: Annotated[Session, Depends(get_session)]) -> ItemListRe
             created_at=item.created_at,
             usage_count=usage_count or 0,
             last_used_at=last_used_at,
+            illustration_count=illustration_count or 0,
         )
-        for item, usage_count, last_used_at in results
+        for item, usage_count, last_used_at, illustration_count in results
     ]
 
     return ItemListResponse(items=items)
@@ -193,7 +200,7 @@ async def autocomplete_items(
 async def get_item(
     item_id: str, db: Annotated[Session, Depends(get_session)]
 ) -> ItemResponse:
-    """Get a single item with usage statistics.
+    """Get a single item with usage statistics and illustration count.
 
     Parameters
     ----------
@@ -216,10 +223,12 @@ async def get_item(
     item_query = (
         select(
             Item,
-            func.count(SessionItem.id).label("usage_count"),
+            func.count(SessionItem.id.distinct()).label("usage_count"),
             func.max(SessionItem.displayed_at).label("last_used_at"),
+            func.count(ItemIllustration.id.distinct()).label("illustration_count"),
         )
         .outerjoin(SessionItem, Item.id == SessionItem.item_id)
+        .outerjoin(ItemIllustration, Item.id == ItemIllustration.item_id)
         .where(Item.id == item_id)
         .group_by(Item.id)
     )
@@ -229,7 +238,7 @@ async def get_item(
     if not result:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    item, usage_count, last_used_at = result
+    item, usage_count, last_used_at, illustration_count = result
 
     return ItemResponse(
         id=item.id,
@@ -238,6 +247,7 @@ async def get_item(
         created_at=item.created_at,
         usage_count=usage_count or 0,
         last_used_at=last_used_at,
+        illustration_count=illustration_count or 0,
     )
 
 

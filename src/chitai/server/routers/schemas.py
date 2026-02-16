@@ -25,6 +25,8 @@ class ItemResponse(BaseModel):
         Number of times this item was used in sessions
     last_used_at : datetime | None
         When this item was last displayed, None if never used
+    illustration_count : int
+        Number of illustrations linked to this item
 
     """
 
@@ -34,6 +36,7 @@ class ItemResponse(BaseModel):
     created_at: datetime
     usage_count: int = Field(ge=0)
     last_used_at: datetime | None = None
+    illustration_count: int = Field(ge=0, default=0)
 
     model_config = ConfigDict(from_attributes=True)
 

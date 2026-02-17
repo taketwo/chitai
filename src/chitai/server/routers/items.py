@@ -12,6 +12,7 @@ from chitai.db.models import Illustration, Item, ItemIllustration, Language, Ses
 from chitai.server.routers.schemas import (
     ItemAutocompleteEntry,
     ItemAutocompleteResponse,
+    ItemCreateEntry,
     ItemIllustrationEntry,
     ItemListEntry,
     ItemListResponse,
@@ -20,14 +21,14 @@ from chitai.server.routers.schemas import (
 router = APIRouter(prefix="/api/items", tags=["items"])
 
 
-@router.post("", response_model=ItemListEntry)
+@router.post("", response_model=ItemCreateEntry)
 async def get_or_create_item(
     text: Annotated[str, Form()],
     language: Annotated[Language, Form()],
     response: Response,
     *,
     db: Annotated[Session, Depends(get_session)],
-) -> ItemListEntry:
+) -> ItemCreateEntry:
     """Get existing item or create a new one (idempotent).
 
     Returns 200 with existing item if found, 201 with new item if created.
@@ -51,33 +52,12 @@ async def get_or_create_item(
     if not normalized_text:
         raise HTTPException(status_code=400, detail="Text cannot be empty")
 
-    usage_count = 0
-    last_used_at = None
-    illustration_count = 0
-
     # Try to find existing item
     item = db.scalars(
         select(Item).where(Item.text == normalized_text, Item.language == language)
     ).first()
 
     if item:
-        # Fetch usage stats and illustration count for existing item
-        item_query = (
-            select(
-                Item,
-                func.count(SessionItem.id.distinct()).label("usage_count"),
-                func.max(SessionItem.displayed_at).label("last_used_at"),
-                func.count(ItemIllustration.id.distinct()).label("illustration_count"),
-            )
-            .outerjoin(SessionItem, Item.id == SessionItem.item_id)
-            .outerjoin(ItemIllustration, Item.id == ItemIllustration.item_id)
-            .where(Item.id == item.id)
-            .group_by(Item.id)
-        )
-
-        if result := db.execute(item_query).first():
-            _, usage_count, last_used_at, illustration_count = result
-
         response.status_code = 200
     else:
         # Create new item
@@ -87,14 +67,11 @@ async def get_or_create_item(
         db.refresh(item)
         response.status_code = 201
 
-    return ItemListEntry(
+    return ItemCreateEntry(
         id=item.id,
         text=item.text,
         language=item.language,
         created_at=item.created_at,
-        usage_count=usage_count,
-        last_used_at=last_used_at,
-        illustration_count=illustration_count,
     )
 
 

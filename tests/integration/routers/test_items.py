@@ -82,8 +82,6 @@ class TestItemsEndpoints:
             data = response.json()
             assert data["text"] == "новый"
             assert data["language"] == "ru"
-            assert data["usage_count"] == 0
-            assert data["last_used_at"] is None
             assert "id" in data
             assert "created_at" in data
 
@@ -335,42 +333,6 @@ class TestItemsEndpoints:
             assert response.status_code == 200
             data = response.json()
             assert data["illustration_count"] == 2
-
-    @pytest.mark.asyncio
-    async def test_create_item_returns_illustration_count(self):
-        """Test POST /api/items returns illustration_count (0 for new items)."""
-        async with http_client() as client:
-            response = await client.post(
-                "/api/items",
-                data={"text": "новый", "language": "ru"},
-            )
-
-            assert response.status_code == 201
-            data = response.json()
-            assert data["illustration_count"] == 0
-
-    @pytest.mark.asyncio
-    async def test_get_existing_item_returns_illustration_count(
-        self, db_session: Session
-    ):
-        """Test POST /api/items (get existing) returns correct illustration_count."""
-        item = create_item(db_session, "существующий")
-
-        # Add illustrations
-        ill = create_illustration(db_session)
-        link = ItemIllustration(item_id=item.id, illustration_id=ill.id)
-        db_session.add(link)
-        db_session.commit()
-
-        async with http_client() as client:
-            response = await client.post(
-                "/api/items",
-                data={"text": "существующий", "language": "ru"},
-            )
-
-            assert response.status_code == 200
-            data = response.json()
-            assert data["illustration_count"] == 1
 
 
 class TestItemsAutocompleteEndpoint:

@@ -41,6 +41,30 @@ class ItemListEntry(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ItemCreateEntry(BaseModel):
+    """Response schema for item create/get (POST /api/items).
+
+    Attributes
+    ----------
+    id : str
+        Item UUID
+    text : str
+        The word, phrase, or sentence
+    language : Language
+        Language of the text (ru, de, en)
+    created_at : datetime
+        When the item was created
+
+    """
+
+    id: str
+    text: str
+    language: Language
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ItemListResponse(BaseModel):
     """Response schema for listing items.
 

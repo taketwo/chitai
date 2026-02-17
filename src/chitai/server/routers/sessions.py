@@ -11,9 +11,9 @@ from chitai.db.models import Item, SessionItem
 from chitai.db.models import Session as DBSession
 from chitai.server.routers.schemas import (
     SessionDetailResponse,
-    SessionItemResponse,
+    SessionItemEntry,
+    SessionListEntry,
     SessionListResponse,
-    SessionResponse,
 )
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
@@ -52,7 +52,7 @@ async def list_sessions(
     results = db.execute(sessions_query).all()
 
     sessions = [
-        SessionResponse(
+        SessionListEntry(
             id=session.id,
             language=session.language,
             started_at=session.started_at,
@@ -105,7 +105,7 @@ async def get_session_detail(
     results = db.execute(session_items_query).all()
 
     items = [
-        SessionItemResponse(
+        SessionItemEntry(
             id=session_item.id,
             item_id=session_item.item_id,
             text=text,

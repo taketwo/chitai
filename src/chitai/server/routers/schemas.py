@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from chitai.db.models import Language  # noqa: TC001
 
 
-class ItemResponse(BaseModel):
+class ItemListEntry(BaseModel):
     """Response schema for a single item.
 
     Attributes
@@ -46,15 +46,15 @@ class ItemListResponse(BaseModel):
 
     Attributes
     ----------
-    items : list[ItemResponse]
+    items : list[ItemListEntry]
         List of items
 
     """
 
-    items: list[ItemResponse]
+    items: list[ItemListEntry]
 
 
-class SessionResponse(BaseModel):
+class SessionListEntry(BaseModel):
     """Response schema for a single session.
 
     Attributes
@@ -86,15 +86,15 @@ class SessionListResponse(BaseModel):
 
     Attributes
     ----------
-    sessions : list[SessionResponse]
+    sessions : list[SessionListEntry]
         List of sessions
 
     """
 
-    sessions: list[SessionResponse]
+    sessions: list[SessionListEntry]
 
 
-class SessionItemResponse(BaseModel):
+class SessionItemEntry(BaseModel):
     """Response schema for an item within a session.
 
     Attributes
@@ -134,7 +134,7 @@ class SessionDetailResponse(BaseModel):
         Session start time
     ended_at : datetime | None
         Session end time (None if still active)
-    items : list[SessionItemResponse]
+    items : list[SessionItemEntry]
         Items displayed during this session, in order
 
     """
@@ -143,12 +143,12 @@ class SessionDetailResponse(BaseModel):
     language: Language
     started_at: datetime
     ended_at: datetime | None
-    items: list[SessionItemResponse]
+    items: list[SessionItemEntry]
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class AutocompleteSuggestion(BaseModel):
+class ItemAutocompleteEntry(BaseModel):
     """Autocomplete suggestion for an item.
 
     Attributes
@@ -166,20 +166,20 @@ class AutocompleteSuggestion(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class AutocompleteResponse(BaseModel):
+class ItemAutocompleteResponse(BaseModel):
     """Response schema for autocomplete suggestions.
 
     Attributes
     ----------
-    suggestions : list[AutocompleteSuggestion]
+    suggestions : list[ItemAutocompleteEntry]
         List of matching items
 
     """
 
-    suggestions: list[AutocompleteSuggestion]
+    suggestions: list[ItemAutocompleteEntry]
 
 
-class IllustrationResponse(BaseModel):
+class IllustrationListEntry(BaseModel):
     """Response schema for a single illustration.
 
     Attributes
@@ -217,18 +217,18 @@ class IllustrationListResponse(BaseModel):
 
     Attributes
     ----------
-    illustrations : list[IllustrationResponse]
+    illustrations : list[IllustrationListEntry]
         List of illustrations
     total : int
         Total number of illustrations (for pagination)
 
     """
 
-    illustrations: list[IllustrationResponse]
+    illustrations: list[IllustrationListEntry]
     total: int = Field(ge=0)
 
 
-class ItemIllustrationResponse(BaseModel):
+class ItemIllustrationEntry(BaseModel):
     """Response schema for an illustration linked to an item.
 
     Attributes

@@ -28,8 +28,8 @@ from chitai.image_processing import (
     save_image_file,
 )
 from chitai.server.routers.schemas import (
+    IllustrationListEntry,
     IllustrationListResponse,
-    IllustrationResponse,
 )
 from chitai.settings import settings
 
@@ -65,13 +65,13 @@ def _serve_illustration_file(
     )
 
 
-@router.post("", response_model=IllustrationResponse, status_code=201)
+@router.post("", response_model=IllustrationListEntry, status_code=201)
 async def import_illustration(
     url: Annotated[str | None, Form()] = None,
     file: Annotated[UploadFile | None, File()] = None,
     *,
     db: Annotated[Session, Depends(get_session)],
-) -> IllustrationResponse:
+) -> IllustrationListEntry:
     """Import illustration from URL or file upload (mutually exclusive)."""
     if url and file:
         raise HTTPException(
@@ -133,7 +133,7 @@ async def import_illustration(
             thumbnail_path.unlink(missing_ok=True)
             raise
 
-        return IllustrationResponse(
+        return IllustrationListEntry(
             id=illustration.id,
             source_url=illustration.source_url,
             width=illustration.width,
@@ -178,7 +178,7 @@ async def list_illustrations(
     results = db.execute(query).all()
 
     illustrations = [
-        IllustrationResponse(
+        IllustrationListEntry(
             id=illustration.id,
             source_url=illustration.source_url,
             width=illustration.width,
@@ -196,10 +196,10 @@ async def list_illustrations(
     return IllustrationListResponse(illustrations=illustrations, total=total)
 
 
-@router.get("/{illustration_id}", response_model=IllustrationResponse)
+@router.get("/{illustration_id}", response_model=IllustrationListEntry)
 async def get_illustration(
     illustration_id: str, db: Annotated[Session, Depends(get_session)]
-) -> IllustrationResponse:
+) -> IllustrationListEntry:
     """Get illustration metadata with item count."""
     query = (
         select(
@@ -220,7 +220,7 @@ async def get_illustration(
 
     illustration, item_count = result
 
-    return IllustrationResponse(
+    return IllustrationListEntry(
         id=illustration.id,
         source_url=illustration.source_url,
         width=illustration.width,

@@ -273,6 +273,49 @@ class ItemIllustrationEntry(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ItemSearchEntry(BaseModel):
+    """Search result item for library search.
+
+    Attributes
+    ----------
+    id : str
+        Item UUID
+    text : str
+        The item text
+    language : Language
+        Language of the text (ru, de, en)
+    is_new : bool
+        True if item has never been used in any session
+    has_illustrations : bool
+        True if item has at least one illustration
+
+    """
+
+    id: str
+    text: str
+    language: Language
+    is_new: bool
+    has_illustrations: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ItemSearchResponse(BaseModel):
+    """Response schema for item search.
+
+    Attributes
+    ----------
+    items : list[ItemSearchEntry]
+        List of matching items
+    has_more : bool
+        True if results were truncated (more matches exist)
+
+    """
+
+    items: list[ItemSearchEntry]
+    has_more: bool
+
+
 class LogMessage(BaseModel):
     """Frontend log message.
 

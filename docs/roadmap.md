@@ -39,9 +39,13 @@
 
 ## Planned
 
-### v0.5 — Starring & back-scroll
+### v0.5 — Library search & starring
 
-Star items during a session for later reuse. Back-scroll through session history on the tablet (parent-controlled). End-of-session review.
+- Library view on the controller: search and filter existing items by text, new/illustrated/starred status; tap to add to queue without leaving the session
+- `GET /api/items/search` backend done; controller UI in progress
+- Star items during a session for later reuse
+- Back-scroll through session history on the tablet (parent-controlled)
+- End-of-session review
 
 ### v0.6 — Image search (laptop)
 

@@ -1,5 +1,7 @@
 """REST API endpoints for items."""
 
+import logging
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Response
@@ -16,7 +18,11 @@ from chitai.server.routers.schemas import (
     ItemIllustrationEntry,
     ItemListEntry,
     ItemListResponse,
+    ItemSearchEntry,
+    ItemSearchResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/items", tags=["items"])
 
@@ -171,6 +177,115 @@ async def autocomplete_items(
     ]
 
     return ItemAutocompleteResponse(suggestions=suggestions)
+
+
+@router.get("/search", response_model=ItemSearchResponse)
+async def search_items(  # noqa: PLR0913
+    language: Language,
+    q: str | None = None,
+    new: bool | None = None,  # noqa: FBT001
+    illustrated: bool | None = None,  # noqa: FBT001
+    exclude_session: str | None = None,
+    limit: int = 100,
+    *,
+    db: Annotated[Session, Depends(get_session)],
+) -> ItemSearchResponse:
+    """Search library items with filters.
+
+    Search items by substring match and apply filters. Returns items sorted
+    alphabetically by text. Used for library browsing in the controller UI.
+
+    Parameters
+    ----------
+    language : Language
+        Language to filter by (ru, de, en)
+    q : str | None
+        Substring search text (matches anywhere in item text)
+    new : bool | None
+        If True, filter to items never used in any session
+    illustrated : bool | None
+        If True, filter to items with at least one illustration
+    exclude_session : str | None
+        If provided, exclude items that appear in this session
+    limit : int
+        Maximum number of results to return (default 100)
+    db : Session
+        Database session (injected)
+
+    Returns
+    -------
+    ItemSearchResponse
+        List of matching items with metadata flags and has_more indicator
+
+    """
+    start_time = time.perf_counter()
+
+    usage_count = func.count(SessionItem.id.distinct()).label("usage_count")
+    illustration_count = func.count(ItemIllustration.id.distinct()).label(
+        "illustration_count"
+    )
+
+    query = (
+        select(Item, usage_count, illustration_count)
+        .outerjoin(SessionItem, Item.id == SessionItem.item_id)
+        .outerjoin(ItemIllustration, Item.id == ItemIllustration.item_id)
+        .where(Item.language == language)
+        .group_by(Item.id)
+    )
+
+    if q is not None:
+        query = query.where(Item.text.like(f"%{q}%"))
+
+    if exclude_session is not None:
+        exclude_sq = (
+            select(SessionItem.id)
+            .where(
+                SessionItem.item_id == Item.id,
+                SessionItem.session_id == exclude_session,
+            )
+            .correlate(Item)
+        )
+        query = query.where(~exclude_sq.exists())
+
+    if new is True:
+        query = query.having(usage_count == 0)
+
+    if illustrated is True:
+        query = query.having(illustration_count > 0)
+
+    query = query.order_by(Item.text).limit(limit + 1)
+
+    results = db.execute(query).all()
+
+    has_more = len(results) > limit
+    if has_more:
+        results = results[:limit]
+
+    result_items = [
+        ItemSearchEntry(
+            id=item.id,
+            text=item.text,
+            language=item.language,
+            is_new=usage_count == 0,
+            has_illustrations=illustration_count > 0,
+        )
+        for item, usage_count, illustration_count in results
+    ]
+
+    elapsed_ms = (time.perf_counter() - start_time) * 1000
+    logger.info(
+        "[SEARCH] q=%r filters={new=%s, illustrated=%s, exclude_session=%s} "
+        "time=%.1fms results=%d has_more=%s",
+        q,
+        new,
+        illustrated,
+        exclude_session,
+        elapsed_ms,
+        len(result_items),
+        has_more,
+    )
+
+    return ItemSearchResponse(items=result_items, has_more=has_more)
 
 
 @router.get("/{item_id}", response_model=ItemListEntry)

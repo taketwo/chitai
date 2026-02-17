@@ -10,24 +10,24 @@ from sqlalchemy.orm import Session  # noqa: TC002
 from chitai.db.engine import get_session
 from chitai.db.models import Illustration, Item, ItemIllustration, Language, SessionItem
 from chitai.server.routers.schemas import (
-    AutocompleteResponse,
-    AutocompleteSuggestion,
-    ItemIllustrationResponse,
+    ItemAutocompleteEntry,
+    ItemAutocompleteResponse,
+    ItemIllustrationEntry,
+    ItemListEntry,
     ItemListResponse,
-    ItemResponse,
 )
 
 router = APIRouter(prefix="/api/items", tags=["items"])
 
 
-@router.post("", response_model=ItemResponse)
+@router.post("", response_model=ItemListEntry)
 async def get_or_create_item(
     text: Annotated[str, Form()],
     language: Annotated[Language, Form()],
     response: Response,
     *,
     db: Annotated[Session, Depends(get_session)],
-) -> ItemResponse:
+) -> ItemListEntry:
     """Get existing item or create a new one (idempotent).
 
     Returns 200 with existing item if found, 201 with new item if created.
@@ -87,7 +87,7 @@ async def get_or_create_item(
         db.refresh(item)
         response.status_code = 201
 
-    return ItemResponse(
+    return ItemListEntry(
         id=item.id,
         text=item.text,
         language=item.language,
@@ -132,7 +132,7 @@ async def list_items(db: Annotated[Session, Depends(get_session)]) -> ItemListRe
     results = db.execute(items_query).all()
 
     items = [
-        ItemResponse(
+        ItemListEntry(
             id=item.id,
             text=item.text,
             language=item.language,
@@ -147,14 +147,14 @@ async def list_items(db: Annotated[Session, Depends(get_session)]) -> ItemListRe
     return ItemListResponse(items=items)
 
 
-@router.get("/autocomplete", response_model=AutocompleteResponse)
+@router.get("/autocomplete", response_model=ItemAutocompleteResponse)
 async def autocomplete_items(
     text: str,
     language: Language,
     limit: int = 3,
     *,
     db: Annotated[Session, Depends(get_session)],
-) -> AutocompleteResponse:
+) -> ItemAutocompleteResponse:
     """Autocomplete item text based on prefix match.
 
     Returns items matching the given text prefix, ordered alphabetically. Used for quick
@@ -173,7 +173,7 @@ async def autocomplete_items(
 
     Returns
     -------
-    AutocompleteResponse
+    ItemAutocompleteResponse
         List of matching items (id and text only)
 
     """
@@ -189,17 +189,17 @@ async def autocomplete_items(
     results = db.execute(query).all()
 
     suggestions = [
-        AutocompleteSuggestion(id=str(item_id), text=item_text)
+        ItemAutocompleteEntry(id=str(item_id), text=item_text)
         for item_id, item_text in results
     ]
 
-    return AutocompleteResponse(suggestions=suggestions)
+    return ItemAutocompleteResponse(suggestions=suggestions)
 
 
-@router.get("/{item_id}", response_model=ItemResponse)
+@router.get("/{item_id}", response_model=ItemListEntry)
 async def get_item(
     item_id: str, db: Annotated[Session, Depends(get_session)]
-) -> ItemResponse:
+) -> ItemListEntry:
     """Get a single item with usage statistics and illustration count.
 
     Parameters
@@ -211,7 +211,7 @@ async def get_item(
 
     Returns
     -------
-    ItemResponse
+    ItemListEntry
         Item with usage statistics
 
     Raises
@@ -240,7 +240,7 @@ async def get_item(
 
     item, usage_count, last_used_at, illustration_count = result
 
-    return ItemResponse(
+    return ItemListEntry(
         id=item.id,
         text=item.text,
         language=item.language,
@@ -286,10 +286,10 @@ async def delete_item(
     return {"status": "deleted"}
 
 
-@router.get("/{item_id}/illustrations", response_model=list[ItemIllustrationResponse])
+@router.get("/{item_id}/illustrations", response_model=list[ItemIllustrationEntry])
 async def list_item_illustrations(
     item_id: str, db: Annotated[Session, Depends(get_session)]
-) -> list[ItemIllustrationResponse]:
+) -> list[ItemIllustrationEntry]:
     """List all illustrations linked to an item."""
     item = db.get(Item, item_id)
 
@@ -306,7 +306,7 @@ async def list_item_illustrations(
     illustrations = db.scalars(query).all()
 
     return [
-        ItemIllustrationResponse(
+        ItemIllustrationEntry(
             id=illustration.id,
             width=illustration.width,
             height=illustration.height,

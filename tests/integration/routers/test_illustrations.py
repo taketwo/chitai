@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 from chitai.db.models import ItemIllustration
-from chitai.image_processing import ImageDownloadError
+from chitai.image_processing import ImageDownloadError, InsufficientStorageError
 from tests.integration.helpers import (
     FAKE_UUID,
     create_illustration,
@@ -342,6 +342,35 @@ class TestIllustrationsEndpoints:
 
                 assert response.status_code == 400
                 assert "timed out" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_import_illustration_insufficient_storage(self):
+        """Test POST /api/illustrations returns 507 when disk is full.
+
+        Also verifies that partially written image files are cleaned up."""
+        storage_msg = "Not enough disk space"
+
+        async def mock_fetch(_url: str) -> bytes:
+            return create_test_image(100, 100, "PNG")
+
+        with (
+            patch(
+                "chitai.server.routers.illustrations.fetch_image_from_url",
+                side_effect=mock_fetch,
+            ),
+            patch(
+                "chitai.server.routers.illustrations.save_image_file",
+                side_effect=InsufficientStorageError(storage_msg),
+            ),
+        ):
+            async with http_client() as client:
+                response = await client.post(
+                    "/api/illustrations",
+                    data={"url": "https://example.com/img.jpg"},
+                )
+
+                assert response.status_code == 507
+                assert "disk space" in response.json()["detail"]
 
     @pytest.mark.asyncio
     async def test_import_illustration_resizes_large_images(

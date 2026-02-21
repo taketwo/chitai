@@ -157,7 +157,10 @@
 
             <div class="library-results">
               <template x-for="item in libraryResults" :key="item.id">
-                <div class="library-result-item">
+                <div
+                  class="library-result-item"
+                  @click="addFromLibrary(item, $event)"
+                >
                   <span class="item-text" x-text="item.text"></span>
                   <span class="item-indicators">
                     <span

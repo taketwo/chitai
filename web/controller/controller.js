@@ -343,5 +343,20 @@ function controllerApp() {
       this.libraryResults = [];
       this.libraryHasMore = false;
     },
+
+    addFromLibrary(item, event) {
+      if (!this.connected) return;
+
+      this.ws.send({ type: "add_item", payload: { item_id: item.id } });
+
+      const element = event.currentTarget;
+      element.classList.add("flashing");
+
+      setTimeout(() => {
+        this.libraryResults = this.libraryResults.filter(
+          (i) => i.id !== item.id,
+        );
+      }, 300);
+    },
   };
 }

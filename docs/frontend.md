@@ -35,6 +35,12 @@ Shared CSS custom properties and button styles. Controller and display layout st
 
 SVG sprite. Icons are referenced via `<use href="/web/icons.svg#name">`.
 
+## Controller view switching
+
+The controller has a bottom navigation bar that switches between Queue and Library views. The active view is driven by URL hash (`#library`; queue is the default when hash is empty). A `hashchange` listener syncs the view on browser back/forward. The library view's state (search text, filter pills, results) persists in the Alpine component when switching away and back — no re-fetch needed.
+
+The admin UI also uses URL hash for tab persistence, but with a different mechanism (`loadTabFromHash`). Both follow the same principle: hash is the source of truth, UI reacts to hash changes.
+
 ## Alpine.js conventions
 
 - **Do not use `x-init` to call `init()`.** Alpine automatically invokes an `init()` method if one is present on the `x-data` object. Adding `x-init="init()"` causes a double invocation.

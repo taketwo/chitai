@@ -9,6 +9,7 @@ function controllerApp() {
     connected: false,
     sessionActive: false,
     sessionLanguage: null,
+    currentView: "queue",
     textInput: "",
     suggestions: [],
     autocompletePosition: "above",
@@ -35,6 +36,14 @@ function controllerApp() {
           this.adjustCurrentWordFontSize();
         });
       });
+
+      // Sync view with URL hash
+      const applyHash = () => {
+        const hash = window.location.hash.slice(1);
+        this.currentView = hash === "library" ? "library" : "queue";
+      };
+      applyHash();
+      window.addEventListener("hashchange", applyHash);
     },
 
     get currentWord() {
@@ -255,6 +264,11 @@ function controllerApp() {
 
       // Show suggestions where there's more space
       this.autocompletePosition = spaceBelow > spaceAbove ? "below" : "above";
+    },
+
+    switchView(view) {
+      this.currentView = view;
+      window.location.hash = view === "queue" ? "" : view;
     },
   };
 }

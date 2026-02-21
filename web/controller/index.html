@@ -29,6 +29,7 @@
 
       <!-- Session active: show everything -->
       <div x-show="sessionActive">
+        <!-- Current Item (always visible) -->
         <div class="item-panel controls" x-show="hasWords">
           <button
             class="back-btn"
@@ -57,7 +58,9 @@
           </button>
         </div>
 
-        <div class="queue-items">
+        <!-- Queue View -->
+        <div x-show="currentView === 'queue'">
+          <div class="queue-items">
           <template x-for="item in queue" :key="item.session_item_id">
             <div class="item-panel queue-item">
               <div class="drag-handle">
@@ -111,6 +114,14 @@
             </button>
           </div>
         </div>
+        </div>
+
+        <!-- Library View -->
+        <div class="library-view" x-show="currentView === 'library'">
+          <div class="library-placeholder">
+            Library view - coming soon
+          </div>
+        </div>
 
         <nav class="bottom-nav">
           <button
@@ -123,13 +134,21 @@
             </svg>
           </button>
           <div class="nav-views">
-            <button class="nav-btn active">
+            <button
+              class="nav-btn"
+              :class="{ 'active': currentView === 'queue' }"
+              @click="switchView('queue')"
+            >
               <svg class="icon">
                 <use href="/web/icons.svg#queue-list"></use>
               </svg>
               <span>Queue</span>
             </button>
-            <button class="nav-btn">
+            <button
+              class="nav-btn"
+              :class="{ 'active': currentView === 'library' }"
+              @click="switchView('library')"
+            >
               <svg class="icon">
                 <use href="/web/icons.svg#magnifying-glass"></use>
               </svg>

@@ -284,6 +284,11 @@ body.controller {
   background: var(--color-gray-medium);
 }
 
+.controller .library-result-item.flashing {
+  background: var(--color-success);
+  transition: background 0.15s;
+}
+
 .controller .library-result-item .item-text {
   flex: 1;
   word-wrap: break-word;

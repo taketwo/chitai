@@ -112,7 +112,7 @@
           </div>
         </div>
 
-        <div class="end-session-panel">
+        <nav class="bottom-nav">
           <button
             class="end-session-btn"
             :disabled="!connected"
@@ -122,7 +122,21 @@
               <use href="/web/icons.svg#arrow-left-start-on-rectangle"></use>
             </svg>
           </button>
-        </div>
+          <div class="nav-views">
+            <button class="nav-btn active">
+              <svg class="icon">
+                <use href="/web/icons.svg#queue-list"></use>
+              </svg>
+              <span>Queue</span>
+            </button>
+            <button class="nav-btn">
+              <svg class="icon">
+                <use href="/web/icons.svg#magnifying-glass"></use>
+              </svg>
+              <span>Library</span>
+            </button>
+          </div>
+        </nav>
       </div>
     </div>
   </body>

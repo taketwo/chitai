@@ -61,65 +61,80 @@
         <!-- Queue View -->
         <div x-show="currentView === 'queue'">
           <div class="queue-items">
-          <template x-for="item in queue" :key="item.session_item_id">
-            <div class="item-panel queue-item">
-              <div class="drag-handle">
-                <svg class="icon">
-                  <use href="/web/icons.svg#pause"></use>
-                </svg>
+            <template x-for="item in queue" :key="item.session_item_id">
+              <div class="item-panel queue-item">
+                <div class="drag-handle">
+                  <svg class="icon">
+                    <use href="/web/icons.svg#pause"></use>
+                  </svg>
+                </div>
+                <div class="queue-item-text" x-text="item.text"></div>
               </div>
-              <div class="queue-item-text" x-text="item.text"></div>
-            </div>
-          </template>
+            </template>
 
-          <!-- Virtual input item -->
-          <div class="item-panel queue-item input-item">
-            <div class="drag-handle"></div>
-            <div class="input-wrapper">
-              <textarea
-                x-ref="textInput"
-                rows="1"
-                x-model="textInput"
-                placeholder="Enter text..."
-                @keydown.enter.prevent="handleEnter"
-                @input.debounce.200ms="fetchSuggestions()"
-                @blur="suggestions = []"
-              ></textarea>
-              <div
-                class="autocomplete-suggestions"
-                :class="'autocomplete-' + autocompletePosition"
-                x-show="suggestions.length > 0"
-              >
-                <template
-                  x-for="suggestion in suggestions"
-                  :key="suggestion.id"
+            <!-- Virtual input item -->
+            <div class="item-panel queue-item input-item">
+              <div class="drag-handle"></div>
+              <div class="input-wrapper">
+                <textarea
+                  class="text-input"
+                  x-ref="textInput"
+                  rows="1"
+                  x-model="textInput"
+                  placeholder="Enter text..."
+                  @keydown.enter.prevent="handleEnter"
+                  @input.debounce.200ms="fetchSuggestions()"
+                  @blur="suggestions = []"
+                ></textarea>
+                <div
+                  class="autocomplete-suggestions"
+                  :class="'autocomplete-' + autocompletePosition"
+                  x-show="suggestions.length > 0"
                 >
-                  <button
-                    type="button"
-                    class="autocomplete-suggestion"
-                    @mousedown.prevent="selectSuggestion(suggestion.text)"
-                    x-text="suggestion.text"
-                  ></button>
-                </template>
+                  <template
+                    x-for="suggestion in suggestions"
+                    :key="suggestion.id"
+                  >
+                    <button
+                      type="button"
+                      class="autocomplete-suggestion"
+                      @mousedown.prevent="selectSuggestion(suggestion.text)"
+                      x-text="suggestion.text"
+                    ></button>
+                  </template>
+                </div>
               </div>
+              <button
+                class="enqueue-btn"
+                :disabled="!sessionActive || !textInput.trim()"
+                @click="submitToQueue"
+              >
+                <svg class="icon">
+                  <use href="/web/icons.svg#arrow-turn-right-up"></use>
+                </svg>
+              </button>
             </div>
-            <button
-              class="enqueue-btn"
-              :disabled="!sessionActive || !textInput.trim()"
-              @click="submitToQueue"
-            >
-              <svg class="icon">
-                <use href="/web/icons.svg#arrow-turn-right-up"></use>
-              </svg>
-            </button>
           </div>
-        </div>
         </div>
 
         <!-- Library View -->
         <div class="library-view" x-show="currentView === 'library'">
-          <div class="library-placeholder">
-            Library view - coming soon
+          <div class="library-panel">
+            <input
+              type="text"
+              class="text-input library-search-input"
+              x-model="librarySearch"
+              placeholder="Search library..."
+              @input.debounce.300ms="searchLibrary()"
+            />
+
+            <div class="library-results">
+              <template x-for="item in libraryResults" :key="item.id">
+                <div class="library-result-item">
+                  <span x-text="item.text"></span>
+                </div>
+              </template>
+            </div>
           </div>
         </div>
 

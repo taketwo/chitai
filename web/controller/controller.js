@@ -19,7 +19,7 @@ function controllerApp() {
     queue: [],
     librarySearch: "",
     libraryResults: [],
-    libraryTotal: 0,
+    libraryHasMore: false,
     libraryFilterNew: false,
     libraryFilterIllustrated: false,
     libraryFilterStarred: false,
@@ -294,7 +294,7 @@ function controllerApp() {
       if (!this.sessionLanguage) {
         console.warn("Cannot search library: no session language");
         this.libraryResults = [];
-        this.libraryTotal = 0;
+        this.libraryHasMore = false;
         return;
       }
 
@@ -322,11 +322,11 @@ function controllerApp() {
 
         const data = await response.json();
         this.libraryResults = data.items;
-        this.libraryTotal = data.total;
+        this.libraryHasMore = data.has_more;
       } catch (error) {
         console.error("Library search error:", error);
         this.libraryResults = [];
-        this.libraryTotal = 0;
+        this.libraryHasMore = false;
       }
     },
 

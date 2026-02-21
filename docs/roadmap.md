@@ -41,9 +41,11 @@
 
 ### v0.5 — Library search & starring
 
-- Library view on the controller: search and filter existing items by text, new/illustrated/starred status; tap to add to queue without leaving the session
-- `GET /api/items/search` backend done; controller UI in progress
-- Star items during a session for later reuse
+- ~~Library view on the controller: search and filter existing items by text, new/illustrated status; tap to add to queue without leaving the session~~
+- ~~`GET /api/items/search` endpoint with substring matching, new/illustrated/exclude-session filters~~
+- ~~Bottom navigation bar on the controller (Queue / Library view switching)~~
+- Star items during a session for later reuse (requires `items.starred` column)
+- Starred filter in library view (UI placeholder exists, not yet wired)
 - Back-scroll through session history on the tablet (parent-controlled)
 - End-of-session review
 

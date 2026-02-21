@@ -19,6 +19,9 @@
   --color-text-disabled: #999;
   --color-border: #ddd;
   --color-disabled: #ccc;
+  --color-filter-new: #007bff;
+  --color-filter-illustrated: #9333ea;
+  --color-filter-starred: #fbbf24;
   --radius-sm: 4px;
   --radius-md: 8px;
   --shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -197,7 +200,70 @@ body.controller {
   border-bottom: 1px solid var(--color-border);
 }
 
+.controller .library-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.controller .filter-pill {
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 400;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-white);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.controller .filter-pill:hover {
+  background: var(--color-gray-light);
+}
+
+.controller .filter-pill.active {
+  border-color: currentColor;
+}
+
+.controller .filter-pill.filter-new.active {
+  background: var(--color-filter-new);
+  color: var(--color-white);
+}
+
+.controller .filter-pill.filter-illustrated.active {
+  background: var(--color-filter-illustrated);
+  color: var(--color-white);
+}
+
+.controller .filter-pill.filter-starred.active {
+  background: var(--color-filter-starred);
+  color: var(--color-text);
+}
+
+.controller .filter-clear {
+  margin-left: auto;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 400;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.controller .filter-clear:hover {
+  color: var(--color-text);
+}
+
 .controller .library-result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 12px;
   font-size: 18px;
   color: var(--color-text);
@@ -216,6 +282,44 @@ body.controller {
 
 .controller .library-result-item:active {
   background: var(--color-gray-medium);
+}
+
+.controller .library-result-item .item-text {
+  flex: 1;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.controller .library-result-item .item-indicators {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.controller .indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.controller .indicator-dot.dot-new {
+  background: var(--color-filter-new);
+}
+
+.controller .indicator-dot.dot-illustrated {
+  background: var(--color-filter-illustrated);
+}
+
+.controller .indicator-dot.dot-starred {
+  background: var(--color-filter-starred);
+}
+
+.controller .library-empty-state {
+  padding: 24px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 16px;
 }
 
 .controller .bottom-nav {

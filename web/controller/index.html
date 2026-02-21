@@ -128,12 +128,67 @@
               @input.debounce.300ms="searchLibrary()"
             />
 
+            <div class="library-filters">
+              <button
+                class="filter-pill filter-new"
+                :class="{ 'active': libraryFilterNew }"
+                @click="toggleLibraryFilter('libraryFilterNew')"
+              >
+                New
+              </button>
+              <button
+                class="filter-pill filter-illustrated"
+                :class="{ 'active': libraryFilterIllustrated }"
+                @click="toggleLibraryFilter('libraryFilterIllustrated')"
+              >
+                Illustrated
+              </button>
+              <button
+                class="filter-pill filter-starred"
+                :class="{ 'active': libraryFilterStarred }"
+                @click="toggleLibraryFilter('libraryFilterStarred')"
+              >
+                Starred
+              </button>
+              <button class="filter-clear" @click="clearLibraryFilters">
+                Clear
+              </button>
+            </div>
+
             <div class="library-results">
               <template x-for="item in libraryResults" :key="item.id">
                 <div class="library-result-item">
-                  <span x-text="item.text"></span>
+                  <span class="item-text" x-text="item.text"></span>
+                  <span class="item-indicators">
+                    <span
+                      class="indicator-dot dot-new"
+                      x-show="item.is_new"
+                    ></span>
+                    <span
+                      class="indicator-dot dot-illustrated"
+                      x-show="item.has_illustrations"
+                    ></span>
+                    <span
+                      class="indicator-dot dot-starred"
+                      x-show="item.is_starred"
+                    ></span>
+                  </span>
                 </div>
               </template>
+
+              <div
+                class="library-empty-state"
+                x-show="libraryResults.length === 0 && !hasLibraryFilters"
+              >
+                Search or filter to find items
+              </div>
+
+              <div
+                class="library-empty-state"
+                x-show="libraryResults.length === 0 && hasLibraryFilters"
+              >
+                No items found
+              </div>
             </div>
           </div>
         </div>

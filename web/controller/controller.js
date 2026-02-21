@@ -8,6 +8,7 @@ function controllerApp() {
   return {
     connected: false,
     sessionActive: false,
+    sessionId: null,
     sessionLanguage: null,
     currentView: "queue",
     textInput: "",
@@ -16,6 +17,9 @@ function controllerApp() {
     words: [],
     currentWordIndex: null,
     queue: [],
+    librarySearch: "",
+    libraryResults: [],
+    libraryTotal: 0,
     ws: null,
 
     init() {
@@ -95,6 +99,7 @@ function controllerApp() {
         this.currentWordIndex = current_word_index ?? null;
         this.queue = queue ?? [];
         this.sessionActive = session_id !== null;
+        this.sessionId = session_id ?? null;
         this.sessionLanguage = language ?? null;
       }
     },
@@ -269,6 +274,48 @@ function controllerApp() {
     switchView(view) {
       this.currentView = view;
       window.location.hash = view === "queue" ? "" : view;
+    },
+
+    async searchLibrary() {
+      const query = this.librarySearch.trim();
+
+      if (!this.sessionLanguage) {
+        console.warn("Cannot search library: no session language");
+        this.libraryResults = [];
+        this.libraryTotal = 0;
+        return;
+      }
+
+      try {
+        const params = new URLSearchParams({
+          language: this.sessionLanguage,
+        });
+
+        if (query) {
+          params.append("q", query);
+        }
+
+        if (this.libraryFilterNew) params.append("new", "true");
+        if (this.libraryFilterIllustrated) params.append("illustrated", "true");
+        if (this.libraryFilterStarred) params.append("starred", "true");
+
+        if (this.sessionId) {
+          params.append("exclude_session", this.sessionId);
+        }
+
+        const response = await fetch(`/api/items/search?${params}`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        this.libraryResults = data.items;
+        this.libraryTotal = data.total;
+      } catch (error) {
+        console.error("Library search error:", error);
+        this.libraryResults = [];
+        this.libraryTotal = 0;
+      }
     },
   };
 }

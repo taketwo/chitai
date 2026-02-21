@@ -20,6 +20,9 @@ function controllerApp() {
     librarySearch: "",
     libraryResults: [],
     libraryTotal: 0,
+    libraryFilterNew: false,
+    libraryFilterIllustrated: false,
+    libraryFilterStarred: false,
     ws: null,
 
     init() {
@@ -84,6 +87,15 @@ function controllerApp() {
       if (this.isNextItemMode) return "chevron-double-right";
       if (this.isLastWord) return "check";
       return "arrow-right";
+    },
+
+    get hasLibraryFilters() {
+      return !!(
+        this.librarySearch.trim() ||
+        this.libraryFilterNew ||
+        this.libraryFilterIllustrated ||
+        this.libraryFilterStarred
+      );
     },
 
     handleStatusChange(connected) {
@@ -316,6 +328,20 @@ function controllerApp() {
         this.libraryResults = [];
         this.libraryTotal = 0;
       }
+    },
+
+    toggleLibraryFilter(filter) {
+      this[filter] = !this[filter];
+      this.searchLibrary();
+    },
+
+    clearLibraryFilters() {
+      this.librarySearch = "";
+      this.libraryFilterNew = false;
+      this.libraryFilterIllustrated = false;
+      this.libraryFilterStarred = false;
+      this.libraryResults = [];
+      this.libraryHasMore = false;
     },
   };
 }

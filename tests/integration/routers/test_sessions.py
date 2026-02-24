@@ -43,9 +43,9 @@ class TestSessionsEndpoints:
         item2 = create_item(db_session, "два")
 
         # session1 has 2 items, session2 has 1 item
-        create_session_item(db_session, session1.id, item1.id)
-        create_session_item(db_session, session1.id, item2.id)
-        create_session_item(db_session, session2.id, item1.id)
+        create_session_item(db_session, session1.id, item1.id, datetime.now(UTC))
+        create_session_item(db_session, session1.id, item2.id, datetime.now(UTC))
+        create_session_item(db_session, session2.id, item1.id, datetime.now(UTC))
 
         async with http_client() as client:
             response = await client.get("/api/sessions")
@@ -138,7 +138,7 @@ class TestSessionsEndpoints:
         """Test deleting a session also deletes its session items."""
         session = create_session(db_session)
         item = create_item(db_session, "элемент")
-        create_session_item(db_session, session.id, item.id)
+        create_session_item(db_session, session.id, item.id, datetime.now(UTC))
 
         async with http_client() as client:
             # Delete the session
@@ -158,8 +158,10 @@ class TestSessionsEndpoints:
         item1 = create_item(db_session, "первый")
         item2 = create_item(db_session, "второй")
 
-        session_item1 = create_session_item(db_session, session.id, item1.id)
-        create_session_item(db_session, session.id, item2.id)
+        session_item1 = create_session_item(
+            db_session, session.id, item1.id, datetime.now(UTC)
+        )
+        create_session_item(db_session, session.id, item2.id, datetime.now(UTC))
 
         async with http_client() as client:
             # Delete first session item
@@ -182,7 +184,9 @@ class TestSessionsEndpoints:
         """Test DELETE returns 404 when session doesn't exist."""
         item = create_item(db_session, "элемент")
         session = create_session(db_session)
-        session_item = create_session_item(db_session, session.id, item.id)
+        session_item = create_session_item(
+            db_session, session.id, item.id, datetime.now(UTC)
+        )
 
         async with http_client() as client:
             response = await client.delete(
@@ -213,7 +217,9 @@ class TestSessionsEndpoints:
         item = create_item(db_session, "элемент")
 
         # Create session item for session2
-        session_item = create_session_item(db_session, session2.id, item.id)
+        session_item = create_session_item(
+            db_session, session2.id, item.id, datetime.now(UTC)
+        )
 
         async with http_client() as client:
             # Try to delete it via session1

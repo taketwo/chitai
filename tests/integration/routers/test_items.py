@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from chitai.db.models import Item, ItemIllustration, SessionItem
+from chitai.db.models import Item, ItemIllustration
 from tests.integration.helpers import (
     DEFAULT_LANGUAGE,
     FAKE_UUID,
@@ -45,9 +45,9 @@ class TestItemsEndpoints:
         session = create_session(db_session)
 
         # item1 used twice, item2 used once, item3 never used
-        create_session_item(db_session, session.id, item1.id)
-        create_session_item(db_session, session.id, item1.id)
-        create_session_item(db_session, session.id, item2.id)
+        create_session_item(db_session, session.id, item1.id, datetime.now(UTC))
+        create_session_item(db_session, session.id, item1.id, datetime.now(UTC))
+        create_session_item(db_session, session.id, item2.id, datetime.now(UTC))
 
         async with http_client() as client:
             response = await client.get("/api/items")
@@ -177,7 +177,7 @@ class TestItemsEndpoints:
         """Test GET /api/items/{id} returns single item with correct stats."""
         item = create_item(db_session, "тестовый")
         session = create_session(db_session)
-        create_session_item(db_session, session.id, item.id)
+        create_session_item(db_session, session.id, item.id, datetime.now(UTC))
 
         async with http_client() as client:
             response = await client.get(f"/api/items/{item.id}")
@@ -209,7 +209,7 @@ class TestItemsEndpoints:
         # Use item 3 times in each session (6 total)
         for session in [session1, session2]:
             for _ in range(3):
-                create_session_item(db_session, session.id, item.id)
+                create_session_item(db_session, session.id, item.id, datetime.now(UTC))
 
         async with http_client() as client:
             response = await client.get(f"/api/items/{item.id}")
@@ -268,7 +268,7 @@ class TestItemsEndpoints:
         """Test deleting an item also deletes its session items."""
         item = create_item(db_session, "каскад")
         session = create_session(db_session)
-        create_session_item(db_session, session.id, item.id)
+        create_session_item(db_session, session.id, item.id, datetime.now(UTC))
 
         async with http_client() as client:
             # Verify session has 1 item before deletion
@@ -473,7 +473,7 @@ class TestItemsAutocompleteEndpoint:
         """Test autocomplete only returns id and text, not usage stats."""
         item = create_item(db_session, "проверка")
         session = create_session(db_session)
-        create_session_item(db_session, session.id, item.id)
+        create_session_item(db_session, session.id, item.id, datetime.now(UTC))
 
         async with http_client() as client:
             response = await client.get(
@@ -595,7 +595,7 @@ class TestItemsSearchEndpoint:
 
         # Use one item in a session
         session = create_session(db_session)
-        create_session_item(db_session, session.id, used_item.id)
+        create_session_item(db_session, session.id, used_item.id, datetime.now(UTC))
 
         async with http_client() as client:
             response = await client.get(
@@ -656,8 +656,8 @@ class TestItemsSearchEndpoint:
 
         # Create session and add items to it
         session = create_session(db_session)
-        create_session_item(db_session, session.id, item1.id)
-        create_session_item(db_session, session.id, item2.id)
+        create_session_item(db_session, session.id, item1.id, datetime.now(UTC))
+        create_session_item(db_session, session.id, item2.id, datetime.now(UTC))
 
         async with http_client() as client:
             response = await client.get(
@@ -683,17 +683,17 @@ class TestItemsSearchEndpoint:
         # Create session with one displayed and one queued item
         session = create_session(db_session)
         create_session_item(
-            db_session, session.id, displayed_item.id
-        )  # Has displayed_at
-
-        # Create queued item without displayed_at
-        queued_session_item = SessionItem(
-            session_id=session.id,
-            item_id=queued_item.id,
-            displayed_at=None,  # Explicitly NULL for queued items
+            db_session,
+            session.id,
+            displayed_item.id,
+            displayed_at=datetime.now(UTC),
         )
-        db_session.add(queued_session_item)
-        db_session.commit()
+        create_session_item(
+            db_session,
+            session.id,
+            queued_item.id,
+            displayed_at=None,
+        )
 
         async with http_client() as client:
             response = await client.get(
@@ -724,8 +724,12 @@ class TestItemsSearchEndpoint:
 
         # Use some items in a session
         session = create_session(db_session)
-        create_session_item(db_session, session.id, used_illustrated.id)
-        create_session_item(db_session, session.id, used_text_only.id)
+        create_session_item(
+            db_session, session.id, used_illustrated.id, datetime.now(UTC)
+        )
+        create_session_item(
+            db_session, session.id, used_text_only.id, datetime.now(UTC)
+        )
 
         async with http_client() as client:
             # Filter: new AND illustrated AND contains "картинка"
@@ -826,7 +830,7 @@ class TestItemsSearchEndpoint:
         used_item = create_item(db_session, "использованный")
 
         session = create_session(db_session)
-        create_session_item(db_session, session.id, used_item.id)
+        create_session_item(db_session, session.id, used_item.id, datetime.now(UTC))
 
         async with http_client() as client:
             response = await client.get(
@@ -888,7 +892,7 @@ class TestItemsSearchEndpoint:
 
         # Use in 1 session
         session = create_session(db_session)
-        create_session_item(db_session, session.id, item.id)
+        create_session_item(db_session, session.id, item.id, datetime.now(UTC))
         db_session.commit()
 
         async with http_client() as client:

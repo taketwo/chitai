@@ -961,3 +961,14 @@ class TestItemsSearchEndpoint:
             assert result_item["language"] == "ru"
             assert isinstance(result_item["is_new"], bool)
             assert isinstance(result_item["has_illustrations"], bool)
+
+    @pytest.mark.asyncio
+    async def test_search_rejects_limit_above_maximum(self):
+        """Test search returns 422 when limit exceeds the allowed maximum."""
+        async with http_client() as client:
+            response = await client.get(
+                "/api/items/search",
+                params={"language": "ru", "limit": 1001},
+            )
+
+            assert response.status_code == 422

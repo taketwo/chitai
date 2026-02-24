@@ -4,7 +4,7 @@ import logging
 import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Response
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Response
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session  # noqa: TC002
@@ -186,7 +186,7 @@ async def search_items(  # noqa: PLR0913
     new: bool | None = None,  # noqa: FBT001
     illustrated: bool | None = None,  # noqa: FBT001
     exclude_session: str | None = None,
-    limit: int = 100,
+    limit: Annotated[int, Query(le=1000)] = 100,
     *,
     db: Annotated[Session, Depends(get_session)],
 ) -> ItemSearchResponse:

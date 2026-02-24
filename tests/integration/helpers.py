@@ -191,7 +191,7 @@ def create_session_item(
     item_id : str
         Item UUID
     displayed_at : datetime | None
-        When the item was displayed (defaults to now)
+        When the item was displayed. None means queued (not yet displayed).
 
     Returns
     -------
@@ -202,7 +202,7 @@ def create_session_item(
     session_item = SessionItem(
         session_id=session_id,
         item_id=item_id,
-        displayed_at=displayed_at or datetime.now(UTC),
+        displayed_at=displayed_at,
     )
     db_session.add(session_item)
     db_session.commit()

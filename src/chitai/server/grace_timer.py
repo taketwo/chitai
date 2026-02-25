@@ -70,7 +70,11 @@ class GraceTimer:
         try:
             await asyncio.sleep(self.grace_period_seconds)
             logger.info("Grace period expired, calling on_expire callback")
-            await self._on_expire(self._last_refresh)  # type: ignore[arg-type]
+            # _last_refresh is always set by refresh() before _run() is created,
+            # so this should never be None in practice.
+            if self._last_refresh is None:
+                return
+            await self._on_expire(self._last_refresh)
             self._task = None
         except asyncio.CancelledError:
             logger.debug("Grace timer cancelled")

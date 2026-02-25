@@ -92,7 +92,7 @@
                   <td x-text="formatDate(item.created_at)"></td>
                   <td class="delete-cell">
                     <button
-                      class="delete-btn"
+                      class="icon-btn delete-btn"
                       @click.stop="deleteItem(item.id)"
                       title="Delete item"
                     >
@@ -188,7 +188,7 @@
                   <td x-text="illustration.item_count"></td>
                   <td class="delete-cell">
                     <button
-                      class="delete-btn"
+                      class="icon-btn delete-btn"
                       @click.stop="deleteIllustration(illustration.id)"
                       title="Delete illustration"
                     >
@@ -233,7 +233,7 @@
                   <td x-text="session.item_count"></td>
                   <td class="delete-cell">
                     <button
-                      class="delete-btn"
+                      class="icon-btn delete-btn"
                       @click.stop="deleteSession(session.id)"
                       title="Delete session"
                     >
@@ -259,7 +259,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h3>Item Details</h3>
-            <button @click="closeItemModal" class="close-btn">
+            <button @click="closeItemModal" class="icon-btn close-btn">
               <svg class="icon">
                 <use href="/web/icons.svg#x-mark"></use>
               </svg>
@@ -347,7 +347,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h3>Illustration Details</h3>
-            <button @click="closeIllustrationModal" class="close-btn">
+            <button @click="closeIllustrationModal" class="icon-btn close-btn">
               <svg class="icon">
                 <use href="/web/icons.svg#x-mark"></use>
               </svg>
@@ -430,7 +430,7 @@
         <div class="modal-content modal-picker">
           <div class="modal-header">
             <h3>Select Illustration</h3>
-            <button @click="closeIllustrationPicker" class="close-btn">
+            <button @click="closeIllustrationPicker" class="icon-btn close-btn">
               <svg class="icon">
                 <use href="/web/icons.svg#x-mark"></use>
               </svg>
@@ -474,7 +474,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h3>Session Details</h3>
-            <button @click="closeSessionModal" class="close-btn">
+            <button @click="closeSessionModal" class="icon-btn close-btn">
               <svg class="icon">
                 <use href="/web/icons.svg#x-mark"></use>
               </svg>
@@ -551,7 +551,7 @@
                         <td x-text="formatItemTime(item)"></td>
                         <td class="delete-cell">
                           <button
-                            class="delete-btn"
+                            class="icon-btn delete-btn"
                             @click="deleteSessionItem(item.id)"
                             title="Delete item from session"
                           >

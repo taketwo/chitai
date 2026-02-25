@@ -128,7 +128,7 @@ th:last-child,
   vertical-align: middle;
 }
 
-.delete-btn {
+.icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -138,16 +138,20 @@ th:last-child,
   border: none;
   background: none;
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.2s;
   color: var(--admin-text-placeholder);
 }
 
-.delete-btn:hover,
-.delete-btn:focus,
-.delete-btn:active {
+.icon-btn:hover,
+.icon-btn:focus,
+.icon-btn:active {
   outline: none;
+  background: none;
   color: var(--admin-text);
+}
+
+.delete-btn {
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
 tr:hover .delete-btn {
@@ -278,26 +282,9 @@ select.input-field {
   color: var(--admin-text);
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  color: var(--admin-text-placeholder);
-  cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .close-btn .icon {
   width: 24px;
   height: 24px;
-}
-
-.close-btn:hover {
-  color: var(--admin-text);
 }
 
 .modal-body {

@@ -486,9 +486,6 @@ body.controller {
 }
 
 .controller .controls .current-word.completed {
-  white-space: normal;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
   padding: 12px;
 }
 

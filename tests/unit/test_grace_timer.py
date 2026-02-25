@@ -1,10 +1,20 @@
 """Unit tests for GraceTimer."""
 
+from __future__ import annotations
+
 import asyncio
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    from datetime import datetime
+
 from chitai.server.grace_timer import GraceTimer
+
+
+async def noop(_: datetime) -> None:
+    """No-op callback for tests that don't care about expiry behavior."""
 
 
 @pytest.mark.asyncio
@@ -33,7 +43,7 @@ async def test_refresh_starts_timer():
 @pytest.mark.asyncio
 async def test_refresh_restarts_timer():
     """Test that refresh() restarts the timer, cancelling the previous countdown."""
-    timer = GraceTimer(grace_period_seconds=0.2, on_expire=lambda _: asyncio.sleep(0))
+    timer = GraceTimer(grace_period_seconds=0.2, on_expire=noop)
 
     timer.refresh()
     first_refresh = timer.last_refresh
@@ -58,7 +68,7 @@ async def test_refresh_restarts_timer():
 @pytest.mark.asyncio
 async def test_stop_stops_timer():
     """Test that stop() stops the timer."""
-    timer = GraceTimer(grace_period_seconds=10, on_expire=lambda _: asyncio.sleep(0))
+    timer = GraceTimer(grace_period_seconds=10, on_expire=noop)
 
     timer.refresh()
     assert timer.is_running
@@ -71,7 +81,7 @@ async def test_stop_stops_timer():
 @pytest.mark.asyncio
 async def test_stop_is_idempotent():
     """Test that stop() can be called multiple times safely."""
-    timer = GraceTimer(grace_period_seconds=10, on_expire=lambda _: asyncio.sleep(0))
+    timer = GraceTimer(grace_period_seconds=10, on_expire=noop)
 
     # Stop when never started
     timer.stop()
@@ -109,7 +119,7 @@ async def test_expiry_calls_callback_with_timestamp():
 @pytest.mark.asyncio
 async def test_expiry_clears_running_state():
     """Test that timer expiry sets is_running to False."""
-    timer = GraceTimer(grace_period_seconds=0.05, on_expire=lambda _: asyncio.sleep(0))
+    timer = GraceTimer(grace_period_seconds=0.05, on_expire=noop)
 
     timer.refresh()
     assert timer.is_running

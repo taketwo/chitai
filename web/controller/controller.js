@@ -15,6 +15,7 @@ function controllerApp() {
     suggestions: [],
     autocompletePosition: "above",
     words: [],
+    syllables: [],
     currentWordIndex: null,
     queue: [],
     librarySearch: "",
@@ -55,7 +56,8 @@ function controllerApp() {
 
     get currentWord() {
       if (this.currentWordIndex !== null && this.words[this.currentWordIndex]) {
-        return this.words[this.currentWordIndex];
+        const sylls = this.syllables[this.currentWordIndex];
+        return sylls ? sylls.join(" · ") : this.words[this.currentWordIndex];
       }
       if (this.isCompleted && this.hasWords) {
         return this.words.join(" ");
@@ -104,10 +106,17 @@ function controllerApp() {
 
     handleMessage(data) {
       if (data.type === "state") {
-        const { session_id, language, words, current_word_index, queue } =
-          data.payload;
+        const {
+          session_id,
+          language,
+          words,
+          syllables,
+          current_word_index,
+          queue,
+        } = data.payload;
 
         this.words = words ?? [];
+        this.syllables = syllables ?? [];
         this.currentWordIndex = current_word_index ?? null;
         this.queue = queue ?? [];
         this.sessionActive = session_id !== null;

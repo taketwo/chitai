@@ -959,6 +959,7 @@ class TestItemsSearchEndpoint:
                 "language",
                 "is_new",
                 "has_illustrations",
+                "starred",
             }
             assert result_item["id"] == str(item.id)
             assert result_item["text"] == "проверка полей"
@@ -976,3 +977,119 @@ class TestItemsSearchEndpoint:
             )
 
             assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_search_filter_starred_items(self, db_session: Session):
+        """Test 'starred' filter returns only starred items."""
+        starred_item = create_item(db_session, "звезда")
+        starred_item.starred = True
+        create_item(db_session, "обычный")
+        db_session.commit()
+
+        async with http_client() as client:
+            response = await client.get(
+                "/api/items/search",
+                params={"language": "ru", "starred": "true"},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["items"]) == 1
+            assert data["items"][0]["text"] == "звезда"
+            assert data["items"][0]["starred"] is True
+
+    @pytest.mark.asyncio
+    async def test_search_starred_flag_in_results(self, db_session: Session):
+        """Test starred flag is correctly set on search results."""
+        starred_item = create_item(db_session, "отмечен")
+        starred_item.starred = True
+        create_item(db_session, "не отмечен")
+        db_session.commit()
+
+        async with http_client() as client:
+            response = await client.get(
+                "/api/items/search",
+                params={"language": "ru"},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            items_by_text = {item["text"]: item for item in data["items"]}
+            assert items_by_text["отмечен"]["starred"] is True
+            assert items_by_text["не отмечен"]["starred"] is False
+
+
+class TestItemsStarEndpoint:
+    """Tests for PUT/DELETE /api/items/{id}/star endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_star_item(self, db_session: Session):
+        """Test PUT stars an item."""
+        item = create_item(db_session, "тест")
+
+        async with http_client() as client:
+            response = await client.put(f"/api/items/{item.id}/star")
+
+            assert response.status_code == 204
+
+        db_session.refresh(item)
+        assert item.starred is True
+
+    @pytest.mark.asyncio
+    async def test_star_item_is_idempotent(self, db_session: Session):
+        """Test PUT /star on an already-starred item is a no-op."""
+        item = create_item(db_session, "тест")
+        item.starred = True
+        db_session.commit()
+
+        async with http_client() as client:
+            response = await client.put(f"/api/items/{item.id}/star")
+
+            assert response.status_code == 204
+
+        db_session.refresh(item)
+        assert item.starred is True
+
+    @pytest.mark.asyncio
+    async def test_unstar_item(self, db_session: Session):
+        """Test DELETE unstars an item."""
+        item = create_item(db_session, "тест")
+        item.starred = True
+        db_session.commit()
+
+        async with http_client() as client:
+            response = await client.delete(f"/api/items/{item.id}/star")
+
+            assert response.status_code == 204
+
+        db_session.refresh(item)
+        assert item.starred is False
+
+    @pytest.mark.asyncio
+    async def test_unstar_item_is_idempotent(self, db_session: Session):
+        """Test DELETE /star on an already-unstarred item is a no-op."""
+        item = create_item(db_session, "тест")
+
+        async with http_client() as client:
+            response = await client.delete(f"/api/items/{item.id}/star")
+
+            assert response.status_code == 204
+
+        db_session.refresh(item)
+        assert item.starred is False
+
+    @pytest.mark.asyncio
+    async def test_star_item_not_found(self):
+        """Test PUT /star returns 404 for unknown item."""
+        async with http_client() as client:
+            response = await client.put(f"/api/items/{FAKE_UUID}/star")
+
+            assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_unstar_item_not_found(self):
+        """Test DELETE /star returns 404 for unknown item."""
+        async with http_client() as client:
+            response = await client.delete(f"/api/items/{FAKE_UUID}/star")
+
+            assert response.status_code == 404

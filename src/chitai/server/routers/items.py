@@ -123,6 +123,7 @@ async def list_items(db: Annotated[Session, Depends(get_session)]) -> ItemListRe
             usage_count=usage_count or 0,
             last_used_at=last_used_at,
             illustration_count=illustration_count or 0,
+            starred=item.starred,
         )
         for item, usage_count, last_used_at, illustration_count in results
     ]
@@ -185,6 +186,7 @@ async def search_items(  # noqa: PLR0913
     q: str | None = None,
     new: bool | None = None,  # noqa: FBT001
     illustrated: bool | None = None,  # noqa: FBT001
+    starred: bool | None = None,  # noqa: FBT001
     exclude_session: str | None = None,
     limit: Annotated[int, Query(le=1000)] = 100,
     *,
@@ -205,6 +207,8 @@ async def search_items(  # noqa: PLR0913
         If True, filter to items never used in any session
     illustrated : bool | None
         If True, filter to items with at least one illustration
+    starred : bool | None
+        If True, filter to starred items only
     exclude_session : str | None
         If provided, exclude items that appear in this session
     limit : int
@@ -253,6 +257,9 @@ async def search_items(  # noqa: PLR0913
     if illustrated is True:
         query = query.having(illustration_count > 0)
 
+    if starred is True:
+        query = query.where(Item.starred.is_(True))
+
     query = query.order_by(Item.text).limit(limit + 1)
 
     results = db.execute(query).all()
@@ -268,6 +275,7 @@ async def search_items(  # noqa: PLR0913
             language=item.language,
             is_new=usage_count == 0,
             has_illustrations=illustration_count > 0,
+            starred=item.starred,
         )
         for item, usage_count, illustration_count in results
     ]
@@ -340,7 +348,62 @@ async def get_item(
         usage_count=usage_count or 0,
         last_used_at=last_used_at,
         illustration_count=illustration_count or 0,
+        starred=item.starred,
     )
+
+
+@router.put("/{item_id}/star", status_code=204)
+async def star_item(item_id: str, db: Annotated[Session, Depends(get_session)]) -> None:
+    """Star an item.
+
+    Parameters
+    ----------
+    item_id : str
+        Item UUID
+    db : Session
+        Database session (injected)
+
+    Raises
+    ------
+    HTTPException
+        404 if item not found
+
+    """
+    item = db.get(Item, item_id)
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    item.starred = True
+    db.commit()
+
+
+@router.delete("/{item_id}/star", status_code=204)
+async def unstar_item(
+    item_id: str, db: Annotated[Session, Depends(get_session)]
+) -> None:
+    """Unstar an item.
+
+    Parameters
+    ----------
+    item_id : str
+        Item UUID
+    db : Session
+        Database session (injected)
+
+    Raises
+    ------
+    HTTPException
+        404 if item not found
+
+    """
+    item = db.get(Item, item_id)
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    item.starred = False
+    db.commit()
 
 
 @router.delete("/{item_id}")

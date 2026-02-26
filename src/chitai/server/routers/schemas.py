@@ -37,6 +37,7 @@ class ItemListEntry(BaseModel):
     usage_count: int = Field(ge=0)
     last_used_at: datetime | None = None
     illustration_count: int = Field(ge=0, default=0)
+    starred: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -296,6 +297,7 @@ class ItemSearchEntry(BaseModel):
     language: Language
     is_new: bool
     has_illustrations: bool
+    starred: bool
 
     model_config = ConfigDict(from_attributes=True)
 

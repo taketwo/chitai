@@ -79,7 +79,8 @@
                 <th>Usage Count</th>
                 <th>Last Used At</th>
                 <th>Created At</th>
-                <th></th>
+                <th class="action-cell"></th>
+                <th class="action-cell"></th>
               </tr>
             </thead>
             <tbody>
@@ -90,9 +91,23 @@
                   <td x-text="item.usage_count"></td>
                   <td x-text="formatDate(item.last_used_at)"></td>
                   <td x-text="formatDate(item.created_at)"></td>
-                  <td class="delete-cell">
+                  <td class="action-cell">
                     <button
-                      class="icon-btn delete-btn"
+                      class="icon-btn row-action-btn star-btn"
+                      :class="{ starred: item.starred }"
+                      @click.stop="toggleStar(item)"
+                      :title="item.starred ? 'Unstar item' : 'Star item'"
+                    >
+                      <svg class="icon">
+                        <use
+                          :href="item.starred ? '/web/icons.svg#star-solid' : '/web/icons.svg#star'"
+                        ></use>
+                      </svg>
+                    </button>
+                  </td>
+                  <td class="action-cell">
+                    <button
+                      class="icon-btn row-action-btn delete-btn"
                       @click.stop="deleteItem(item.id)"
                       title="Delete item"
                     >
@@ -186,7 +201,7 @@
                     x-text="formatFileSize(illustration.file_size_bytes)"
                   ></td>
                   <td x-text="illustration.item_count"></td>
-                  <td class="delete-cell">
+                  <td class="action-cell">
                     <button
                       class="icon-btn delete-btn"
                       @click.stop="deleteIllustration(illustration.id)"
@@ -231,7 +246,7 @@
                     x-text="formatDuration(session.started_at, session.ended_at)"
                   ></td>
                   <td x-text="session.item_count"></td>
-                  <td class="delete-cell">
+                  <td class="action-cell">
                     <button
                       class="icon-btn delete-btn"
                       @click.stop="deleteSession(session.id)"
@@ -294,6 +309,19 @@
                   class="info-value"
                   x-text="formatDate(modalItem?.created_at)"
                 ></span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Starred:</span>
+                <span class="info-value">
+                  <svg
+                    class="icon modal-star-icon"
+                    :class="{ starred: modalItem?.starred }"
+                  >
+                    <use
+                      :href="modalItem?.starred ? '/web/icons.svg#star-solid' : '/web/icons.svg#star'"
+                    ></use>
+                  </svg>
+                </span>
               </div>
             </div>
 
@@ -549,7 +577,7 @@
                           x-text="item.completed_at ? 'Completed' : 'Abandoned'"
                         ></td>
                         <td x-text="formatItemTime(item)"></td>
-                        <td class="delete-cell">
+                        <td class="action-cell">
                           <button
                             class="icon-btn delete-btn"
                             @click="deleteSessionItem(item.id)"

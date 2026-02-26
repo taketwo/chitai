@@ -225,7 +225,7 @@ body.controller {
 }
 
 .controller .filter-pill.active {
-  border-color: currentColor;
+  border-color: transparent;
 }
 
 .controller .filter-pill.filter-new.active {

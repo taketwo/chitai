@@ -220,8 +220,10 @@ body.controller {
   transition: all 0.2s;
 }
 
-.controller .filter-pill:hover {
-  background: var(--color-gray-light);
+@media (hover: hover) {
+  .controller .filter-pill:hover {
+    background: var(--color-gray-light);
+  }
 }
 
 .controller .filter-pill.active {

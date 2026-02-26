@@ -58,6 +58,7 @@ class Item(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=utc_now
     )
+    starred: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Relationships
     session_items: Mapped[list[SessionItem]] = relationship(

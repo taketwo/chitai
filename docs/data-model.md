@@ -23,7 +23,6 @@ Six tables: `items`, `sessions`, `session_items`, `settings`, `illustrations`, `
 
 These fields are planned but not implemented. Do not add them to the model without a migration:
 
-- `items.starred` — flagged for reuse (v0.5)
 - `items.syllables_override` — manual syllabification correction per item (v1.0)
 
 ## Cascade rules

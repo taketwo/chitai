@@ -311,8 +311,20 @@ function adminApp() {
 
     // Item modal
 
+    async toggleStar(item) {
+      const method = item.starred ? "DELETE" : "PUT";
+      try {
+        const response = await fetch(`/api/items/${item.id}/star`, { method });
+        if (response.ok) {
+          item.starred = !item.starred;
+        }
+      } catch (error) {
+        console.error("Failed to toggle star:", error);
+      }
+    },
+
     async openItemModal(item, event) {
-      if (event.target.closest(".delete-btn")) return;
+      if (event.target.closest(".row-action-btn")) return;
 
       this.modalItem = item;
       this.itemModalVisible = true;

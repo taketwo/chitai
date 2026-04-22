@@ -21,7 +21,9 @@
     <div x-data="displayApp()" class="app-wrapper">
       <div x-ref="status" class="status"></div>
 
-      <div class="placeholder" :class="{ hidden: hasWords }"></div>
+      <div class="placeholder" :class="{ hidden: hasWords }">
+        <img src="/web/favicon.svg" alt="" />
+      </div>
 
       <div class="container" :class="`orientation-${orientation}`">
         <div class="text-panel">

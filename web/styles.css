@@ -606,7 +606,6 @@ body.display {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 50px;
   pointer-events: none;
   opacity: 1;
   transition: opacity 0.5s ease;
@@ -617,8 +616,9 @@ body.display {
   opacity: 0;
 }
 
-.display .placeholder::before {
-  content: "🌀";
+.display .placeholder img {
+  width: 50px;
+  height: 50px;
 }
 
 .display .container {

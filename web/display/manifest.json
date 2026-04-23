@@ -1,0 +1,14 @@
+{
+  "name": "Chitai Display",
+  "short_name": "Chitai",
+  "start_url": "/web/display/",
+  "scope": "/web/display/",
+  "display": "fullscreen",
+  "icons": [
+    {
+      "src": "/web/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

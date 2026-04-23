@@ -1,0 +1,14 @@
+{
+  "name": "Chitai Controller",
+  "short_name": "Chitai",
+  "start_url": "/web/controller/",
+  "scope": "/web/controller/",
+  "display": "standalone",
+  "icons": [
+    {
+      "src": "/web/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -27,7 +27,7 @@ Clients connect via `wss://`. Browsers will show a certificate warning on first 
 `docker/compose.yaml` defines two profiles:
 
 - **`dev`** (`chitai-dev` service): source tree is bind-mounted into the container, `CHITAI_RELOAD=true` enables hot-reload. Start with `just docker-up`.
-- **`prod`** (`chitai` service): pulls a pre-built image from the container registry, `restart: unless-stopped`, data volume is the only mount. A `watchtower` sidecar checks for new images every 5 minutes and auto-updates.
+- **`prod`** (`chitai` service): pulls a pre-built image from the container registry, `restart: unless-stopped`, data volume is the only mount. No auto-update sidecar is included — if you want automatic image updates, [Watchtower](https://containrrr.dev/watchtower/) is a good option.
 
 ## CI/CD
 
